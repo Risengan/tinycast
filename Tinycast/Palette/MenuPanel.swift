@@ -36,11 +36,17 @@ final class MenuPanel: NSPanel {
 /// Presents one menu at a time in a `MenuPanel` hung off a corner of the palette.
 @MainActor
 final class MenuPanelController {
+    /// The geometry `layout` last applied, as requested rather than as AppKit rounded it.
+    private struct Placement: Equatable {
+        let canvas: CGRect
+        let corner: MenuPanelCorner
+    }
+
     private var panel: MenuPanel?
     private var hosting: NSHostingView<AnyView>?
     private weak var parent: NSWindow?
     private var clipPath: MenuPanelClipPath?
-    private var anchoredCorner: MenuPanelCorner?
+    private var placement: Placement?
     private var modelScale: CGFloat = 1
     private var reducesMotion = false
     private var motion: MenuPanelMotion?
@@ -222,15 +228,14 @@ final class MenuPanelController {
         let frame = corner.frame(
             contentSize: size, parentFrame: parent.frame, inset: inset,
             headerExtent: metrics.size.headerPadding + metrics.size.headerHeight)
-        let previousCorner = anchoredCorner
-        anchoredCorner = corner
-        let animationFrame = corner.scaledFrame(frame, by: motion.maximumScale)
-        guard resetMotion || panel.frame != animationFrame || previousCorner != corner else {
-            return
-        }
-        panel.setFrame(animationFrame, display: true)
+        let canvas = corner.scaledFrame(frame, by: motion.maximumScale)
+        let next = Placement(canvas: canvas, corner: corner)
+        // Every arrow key re-pushes the tree; reconfiguring would cut the reveal short.
+        guard resetMotion || next != placement else { return }
+        placement = next
+        panel.setFrame(canvas, display: true)
         configureHosting(
-            contentSize: size, canvasSize: animationFrame.size, scale: modelScale, corner: corner,
+            contentSize: size, canvasSize: canvas.size, scale: modelScale, corner: corner,
             metrics: metrics)
         refreshShadow(panel)
     }

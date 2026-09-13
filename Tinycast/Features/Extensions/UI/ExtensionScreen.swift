@@ -211,25 +211,29 @@ struct ExtensionScreen: Equatable {
         items.first { $0.node.bool("autoFocus") == true }?.index ?? 0
     }
 
-    /// Submenus flatten one level with their title prefixed: the palette's menu is flat.
+    /// Submenus flatten into their section: the palette's menu is flat.
     static func actions(in panel: RenderNode?) -> [ExtensionAction] {
         guard let panel else { return [] }
         var result: [ExtensionAction] = []
-        func walk(_ node: RenderNode, sectionTitle: String?) {
+        // By node, not title: untitled sections are the common case and must still separate.
+        var previousSection: RenderNode.ID?
+        func walk(_ node: RenderNode, section: RenderNode.ID?) {
             for child in node.children {
                 switch child.type {
                 case "Action":
-                    result.append(ExtensionAction(node: child, section: sectionTitle))
+                    let startsSection = !result.isEmpty && section != previousSection
+                    result.append(ExtensionAction(node: child, startsSection: startsSection))
+                    previousSection = section
                 case "ActionPanel.Section":
-                    walk(child, sectionTitle: child.string("title"))
+                    walk(child, section: child.id)
                 case "ActionPanel.Submenu":
-                    walk(child, sectionTitle: child.string("title") ?? sectionTitle)
+                    walk(child, section: section)
                 default:
                     break
                 }
             }
         }
-        walk(panel, sectionTitle: nil)
+        walk(panel, section: nil)
         return result
     }
 }
@@ -237,7 +241,8 @@ struct ExtensionScreen: Equatable {
 /// One activatable action from an `ActionPanel`.
 struct ExtensionAction: Equatable, Identifiable {
     let node: RenderNode
-    let section: String?
+    /// True for the first action after a section boundary, so the menu draws a separator above it.
+    let startsSection: Bool
 
     var id: Int { node.id }
     var title: String { node.string("title") ?? "Action" }

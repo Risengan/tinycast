@@ -171,7 +171,7 @@ enum ExtensionActionsMenu {
 
     /// Rows carry a resolved `ExtensionImage`; resolving per ↑/↓ would probe symbols on main.
     static func rows(_ actions: [ExtensionAction], assetsPath: String?) -> [ExtensionActionItem] {
-        actions.enumerated().map { index, action in
+        actions.map { action in
             ExtensionActionItem(
                 title: action.title,
                 icon: ExtensionImage.actionIcon(
@@ -181,7 +181,7 @@ enum ExtensionActionsMenu {
                     isDestructive: action.isDestructive),
                 shortcut: action.shortcutCaps?.joined(),
                 isDestructive: action.isDestructive,
-                startsSection: index > 0 && action.section != actions[index - 1].section)
+                startsSection: action.startsSection)
         }
     }
 }

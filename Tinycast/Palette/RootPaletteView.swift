@@ -322,6 +322,10 @@ struct RootPaletteView: View {
             .onChange(of: vm.focusToken) {
                 searchFocused = !screen.hidesSearchField
             }
+            // A preserved screen re-summons as it was left, so a menu must end with the palette.
+            .onChange(of: vm.isVisible) {
+                if !vm.isVisible, menuOpen { closeMenus() }
+            }
             .onChange(of: vm.query) {
                 vm.selection = 0
                 scroll = ScrollIntent(kind: .top)

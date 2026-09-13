@@ -354,8 +354,39 @@ struct ExtensionTests {
         check(
             "shortcut renders as keycaps", actions.first?.shortcutCaps == ["⌘", "⇧", "G"],
             String(describing: actions.first?.shortcutCaps))
-        check("section title carried", actions.last?.section == "More")
+        check("loose action starts no section", actions.first?.startsSection == false)
+        check("a section after loose actions starts one", actions.last?.startsSection == true)
         check("destructive style", actions.last?.isDestructive == true)
+        sectionBoundaryChecks()
+    }
+
+    /// Boundaries follow section nodes: Raycast authors mostly leave sections untitled.
+    static func sectionBoundaryChecks() {
+        func action(_ id: Int) -> String {
+            #"{"id":\#(id),"type":"Action","props":{"title":"A\#(id)"},"children":[]}"#
+        }
+        let json = """
+            {"id":1,"type":"ActionPanel","props":{},"children":[
+              {"id":2,"type":"ActionPanel.Section","props":{},"children":[
+                \(action(3)),
+                {"id":4,"type":"ActionPanel.Submenu","props":{"title":"Share"},"children":[\(action(5))]},
+                \(action(6))]},
+              {"id":7,"type":"ActionPanel.Section","props":{},"children":[]},
+              {"id":8,"type":"ActionPanel.Section","props":{},"children":[\(action(9))]},
+              {"id":10,"type":"ActionPanel.Section","props":{"title":"Same"},"children":[\(action(11))]},
+              {"id":12,"type":"ActionPanel.Section","props":{"title":"Same"},"children":[\(action(13))]},
+              \(action(14))]}
+            """
+        guard let object = try? JSONSerialization.jsonObject(with: Data(json.utf8)) as? [String: Any],
+            let panel = RenderNode(json: object)
+        else {
+            check("section fixture decodes", false)
+            return
+        }
+        let starts = ExtensionScreen.actions(in: panel).map(\.startsSection)
+        check(
+            "separators follow section nodes, not titles",
+            starts == [false, false, false, true, true, true, true], "\(starts)")
     }
 
     static func screenChecks() {
