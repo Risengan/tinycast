@@ -381,12 +381,18 @@ extension ExtensionImage {
 
 /// A resolved icon at row size; an unresolvable one draws the faint tile, so rows never jump.
 struct ExtensionIconView: View {
+    private enum MenuSymbolStyle {
+        static let size: CGFloat = 14
+        static let color = Theme.Colors.ramp(dark: 0.70, light: 0.70)
+    }
+
     @Environment(\.metrics) private var metrics
     @Environment(\.isDarkAppearance) private var isDark
     let resolved: ExtensionImage.Resolved?
     var size: CGFloat?
     /// Opt-in, and off for row icons: a playing GIF at 24pt is noise in a long list.
     var animates = false
+    var usesMenuSymbolStyle = false
     @State private var loaded: NSImage?
 
     /// Row size unless a caller states one, which only the ⌘K panel's 20pt slot does.
@@ -407,9 +413,24 @@ struct ExtensionIconView: View {
         switch resolved?.source {
         case .symbol(let name):
             Image(systemName: name)
-                .font(.system(size: side * 0.62, weight: .regular))
-                .symbolRenderingMode(resolved?.tint == nil ? .hierarchical : .monochrome)
-                .foregroundStyle(resolved?.tint ?? Theme.Colors.textSecondary)
+                .font(
+                    .system(
+                        size: usesMenuSymbolStyle
+                            ? metrics.scaled(MenuSymbolStyle.size)
+                            : side * 0.62,
+                        weight: usesMenuSymbolStyle ? .medium : .regular)
+                )
+                .symbolRenderingMode(
+                    usesMenuSymbolStyle
+                        ? .monochrome
+                        : (resolved?.tint == nil ? .hierarchical : .monochrome)
+                )
+                .foregroundStyle(
+                    resolved?.tint
+                        ?? (usesMenuSymbolStyle
+                            ? MenuSymbolStyle.color
+                            : Theme.Colors.textSecondary)
+                )
                 .frame(width: side, height: side)
         case .glyph(let text):
             Text(text)

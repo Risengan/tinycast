@@ -148,6 +148,7 @@ panel, the shortcut-recorder callout and the Notes switcher, and `menuRow` is de
 `panelWidth 750` · `panelHeight 475` · `headerHeight 44` · `bottomBarHeight 52` · `barButtonHeight 28` ·
 `rowIcon 24` · `keyCap 18` · `recorderKeyCap 16` · `menuButton 36` · `clipboardListWidth 290` ·
 `menuWidth 276` · `clipboardFilterMenuWidth 200` · `menuIcon 20` ·
+`menuOverflowFade 30` ·
 `settingsSidebar 215` · `settingsRowIcon 20` · `dialogWidth 420` · `dialogIcon 32` · `hudWidth 200` ·
 `hudHeight 100` · `volumeTrackHeight 6` · `volumeKnob 16` · `volumeReadout 38`
 
@@ -159,14 +160,16 @@ Notes adds `noteWindow 520×420` (opening size on a first run only), `noteWindow
 
 ### Typography (`Theme.Typography`)
 
-System text styles only — **no fixed point sizes in views**. `searchField` is the one explicit size
-(20pt regular). Use `rowTitle` (`.body`), `sectionHeader` (`.subheadline.medium`),
+System text styles only — **no fixed point sizes in views**. Two named exceptions are explicit:
+`searchField` (20pt Regular) and the optical SF Symbol treatment `menuSymbol` (14pt Medium). Use
+`rowTitle` (`.body`), `sectionHeader` (`.subheadline.medium`),
 `rowTrailing`/`bar`/`menuRow`/`keyCap` etc. as named.
 
 `InterfaceMetrics.Typography` scales a style by rebuilding its `NSFont` **from that font's own
 descriptor** at the scaled point size. Never reconstruct one as `.system(size:weight:)` from a
 hand-written weight table: on macOS `.headline` is Bold and `.caption2` is Medium, so a table
-*lightens* them the moment the user leaves the default size.
+*lightens* them the moment the user leaves the default size. `menuSymbol` is the deliberate exception:
+it is an explicitly-sized glyph treatment, not a system text style, so scaling preserves Medium.
 
 ### Colors (`Theme.Colors`) — the alpha ramp
 
@@ -185,6 +188,7 @@ shipped. Light is the same stop with the ink inverted, and is the only column op
 | `textPrimary`     | white 1.00     | black 1.00     | search text and caret, volume fill and knob      |
 | `textSecondary`   | white 0.60     | black 0.60     | secondary labels                                 |
 | `textTertiary`    | white 0.40     | black 0.42     | placeholders, trailing kind labels               |
+| `menuSymbol`      | white 0.70     | black 0.70     | native popover-menu symbols                      |
 | `iconPlaceholder` | white 0.06     | black 0.06     | the empty tile a row paints while an icon decodes |
 | `sheen`           | white 0.04     | black 0.04     | the wash behind the Onboarding header            |
 | `cardFill`        | white 0.05     | black 0.04     | settings/calc card fill                          |
@@ -292,11 +296,14 @@ Source: `DesignSystem/Scrolling/OverflowFade.swift`.
 The counterpart for any list with no bars over it — the Settings lists and the Notes switcher — and
 deliberately a separate type: sharing one modifier would tie such a list to geometry that only means
 something under a bar. Attach with `.overflowFade()` on the `ScrollView`, before `.thinScrollbar()`,
-same as the edge dissolve.
+or pass `includingTop: true` for a bounded popup whose title and rows scroll together.
 
-- **Bottom only.** Nothing sits over the top of these lists; fading the first row reads as "this one can't be chosen", which in a list of checkboxes is a lie.
-- Fade band: a flat **24px**, borrowed from no bar because there is no bar.
-- **No alpha floor.** The fade is purely an affordance for content past the edge, so it eases in with how much is hidden and clears completely once the list rests at the bottom.
+- **Bottom by default.** Settings and Notes have nothing above their lists; popups opt into the top
+  edge because their content, including the title, can scroll past it.
+- Fade band: **24px** with the original single-stop curve by default; popups opt into the progressive
+  top-and-bottom curve and their own 30pt band.
+- **No alpha floor.** Each enabled edge eases with how much content is hidden there and clears
+  completely once the list rests against it.
 - No `.ignoresSafeArea()`: a Settings list carries no bar insets to correct for.
 
 ---
@@ -342,11 +349,11 @@ Glass is **only** for floating controls, never the main surface.
 - `View.frosted(in:)` = `glassEffect(.regular.interactive().tint(glassFrost), in:)` + `.tint(.clear)` — interactive lensing with a whitish frost tint (`glassFrost`) so the glass reads brighter than clear. Used on the action-group capsule, the menu circle, `PopoverMenu` and a dialog's buttons — always _inside_ a window that already has a `VisualEffectView` behind it. Neither HUD uses it: on a panel of its own, glass has no backdrop to lens and falls back to an opaque backing that reads as a dark edge, so both take the panel recipe instead (see "Dialogs & HUD"). Tune the frost amount via the `glassFrost` token, not per call site.
 - **Menus are in-window overlays, not system popovers.** `.contextMenu`/`NSMenu` stall clicks for seconds inside a `LazyVStack` and spill outside the panel. Use `PopoverMenu` anchored to a corner via `.overlay`, inset `menuInset` (8pt) so its own corner isn't clipped by the panel's. A menu hung off a control instead of a corner — the clipboard type filter, `.topTrailing` — insets by that control's own metrics so their edges line up.
 - **A menu's `width` is fixed, never intrinsic**, so it can't jitter as its rows change: `menuWidth 276` by default, or a token of its own where that reads too wide (`clipboardFilterMenuWidth 200`).
-- **`PopoverMenu`** uses `glassEffect(.regular, in: RoundedRectangle(menuPanel 16))` with **no hand-tuned shadow** — Tahoe glass carries its own elevation; adding a drop shadow reads heavy and non-native.
-- `PopoverMenuRow`: leading glyph, label, trailing shortcut glyph, `menuHover` fill on hover, `menuRow 10` corner. Menus animate in with `.opacity + .scale(0.96)` from the anchored corner, `easeOut 0.14`.
-- The glyph is a `PopoverMenuIcon`: `.symbol` (SF Symbol, `hierarchical`, secondary — or **red** when `isDestructive`) or `.file` (a real app icon via `IconCache`, used by the paste rows to show the paste target). `PopoverMenuItem` keeps a `systemImage:` convenience init, so symbol rows read exactly as before.
-- **Both glyph kinds share one square `menuIcon` (20) slot**, which is what makes symbol and app-icon rows read as the same size and pins a single row height. 20 is deliberately larger than the artwork looks: an `IconCache` icon paints only ~85% of its canvas (13pt visible at a 16pt slot), while a `.body` SF Symbol renders 17–18pt tall — at 20 the icon lands on 17pt and the two match. Measure before changing it.
-- Menu rows are the one place that uses `sm` for the icon→label gap instead of the row-standard `lg`, because that slot's built-in slack already contributes 2–3pt of apparent space.
+- **`PopoverMenu`** uses `glassEffect(.regular)` with `menuPanel 16` corners and **no hand-tuned shadow** — Tahoe glass carries its own elevation; adding a drop shadow reads heavy and non-native. A footer menu raises only its attached bottom corner to the controls' 18-point radius, so the two silhouettes meet exactly.
+- `PopoverMenuRow`: leading glyph, label, trailing shortcut glyph, `menuHover` fill on hover, `menuRow 10` corner. Menus animate in with opacity and scale from the anchored corner, stretching briefly to 1.003 before settling; `Theme.MenuMotion` owns the entry, settle and shorter exit timings.
+- The glyph is a `PopoverMenuIcon`: `.symbol` (SF Symbol, `monochrome`, `menuSymbol` — or **red** when `isDestructive`) or `.file` (a real app icon via `IconCache`, used by the paste rows to show the paste target). `PopoverMenuItem` keeps a `systemImage:` convenience init, so symbol rows read exactly as before.
+- **Both glyph kinds share one square `menuIcon` (20) slot**, which pins one row height. A native SF Symbol uses the dedicated 14pt Medium `menuSymbol` font; file and brand icons keep their own artwork sizing inside the same slot.
+- Menu rows use the `md` icon→label gap; the fixed slot adds the remaining optical slack.
 
 ---
 

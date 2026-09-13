@@ -405,8 +405,8 @@ closes the open menu rather than reopening it on that row.
 Every row closes the menu behind it — `activateMenuItem` is the one path, and a row that reorders the
 list under itself (Move Favorite Up/Down) is no exception, so no row ever runs against a rebuilt menu.
 
-`PopoverMenuItem.startsSection` draws a separator in the existing gap above a row. It takes no
-layout space or selection index, so the menu keeps its row positions, dimensions, and navigation.
+`PopoverMenuItem.startsSection` draws a separator with 6pt above and below it. That height joins the
+menu's exact sizing, but the separator takes no selection index, so navigation still walks only rows.
 Built-in action menus mark boundaries between opening or copying, managing the item, settings, and
 deletion. Menus offering one kind of action, such as calculator copies, color formats, or emoji
 transfers, keep their rows in one group.
@@ -426,11 +426,13 @@ The panel is a second SwiftUI hierarchy, so it observes nothing of `RootPaletteV
 `paletteEnvironment` injects the same stores into both hierarchies so they cannot drift.
 `WindowReader` reports the palette's `NSWindow`, which the menu's frame is placed against.
 
-`PaletteMenuContent` opts into `clipsToMenuCorners` when wrapping a native `PopoverMenu`. Its hosting
-view's backing layer uses the continuous `menuPanel` corner with edge antialiasing. AppKit draws the
-window shadow from that outline, refreshed after layout and display on show and resize. Custom
-extension panels keep their original hosting setup. Switching between native and custom content
-replaces the hosting view so layer styling stays with the menu that requested it.
+`PaletteMenuContent` may supply its own host-layer clip path and motion.
+The hosting layer scales inside a canvas sized for the largest frame, anchored to the button or
+header control that opened it, so neither the surface nor its shadow is cropped. AppKit refreshes
+the shadow after layout and display. Native `PopoverMenu` content reads its motion from
+`Theme.MenuMotion`; extension menus supply values owned by `Features/Extensions`, so launcher
+changes cannot silently alter an extension surface. Each extension menu also supplies its own clip
+path; the controller applies it as an opaque value and never reconstructs extension geometry.
 
 ## Menu-open input freeze
 

@@ -49,6 +49,7 @@ struct PalettePlacementTests {
         restoringAcrossDisplays()
         restoringPartlyOffscreen()
         snapping()
+        menuPanelAnchors()
         tokenGrammar()
         everyInterfaceSize()
 
@@ -149,6 +150,44 @@ struct PalettePlacementTests {
             !PalettePlacement.isSnapping(
                 CGPoint(x: target.x + 300, y: target.y - 300), to: target, within: snap),
             "and a panel dragged properly aside stays where it was dropped")
+    }
+
+    // MARK: - Menu panels
+
+    static func menuPanelAnchors() {
+        let parent = CGRect(x: 100, y: 200, width: 750, height: 475)
+        let content = CGSize(width: 276, height: 240)
+        let inset = metrics.spacing.md
+        let headerExtent = metrics.size.headerPadding + metrics.size.headerHeight
+
+        let leading = MenuPanelCorner.bottomLeading.frame(
+            contentSize: content, parentFrame: parent, inset: inset,
+            headerExtent: headerExtent)
+        expect(leading.minX, parent.minX + inset, "the left menu follows the footer's leading edge")
+        expect(leading.minY, parent.minY + inset, "the left menu follows the footer's bottom edge")
+
+        let trailing = MenuPanelCorner.bottomTrailing.frame(
+            contentSize: content, parentFrame: parent, inset: inset,
+            headerExtent: headerExtent)
+        expect(trailing.maxX, parent.maxX - inset, "the action menu follows the trailing button")
+        expect(trailing.minY, parent.minY + inset, "the action menu follows the footer's bottom edge")
+
+        let header = MenuPanelCorner.belowHeaderTrailing.frame(
+            contentSize: content, parentFrame: parent, inset: inset,
+            headerExtent: headerExtent)
+        expect(header.maxX, parent.maxX - inset * 2, "a header menu follows its trailing control")
+        expect(header.maxY, parent.maxY - headerExtent, "a header menu opens below the field")
+
+        let scale = Theme.MenuMotion.maximumScale
+        let leadingCanvas = MenuPanelCorner.bottomLeading.scaledFrame(leading, by: scale)
+        let trailingCanvas = MenuPanelCorner.bottomTrailing.scaledFrame(trailing, by: scale)
+        let headerCanvas = MenuPanelCorner.belowHeaderTrailing.scaledFrame(header, by: scale)
+        expect(leadingCanvas.minX, leading.minX, "left expansion keeps its leading edge fixed")
+        expect(leadingCanvas.minY, leading.minY, "left expansion keeps its bottom edge fixed")
+        expect(trailingCanvas.maxX, trailing.maxX, "right expansion keeps its trailing edge fixed")
+        expect(trailingCanvas.minY, trailing.minY, "right expansion keeps its bottom edge fixed")
+        expect(headerCanvas.maxX, header.maxX, "header expansion keeps its trailing edge fixed")
+        expect(headerCanvas.maxY, header.maxY, "header expansion keeps its top edge fixed")
     }
 
     // MARK: - The tokens these rules depend on

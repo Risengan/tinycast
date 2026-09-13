@@ -318,10 +318,9 @@ struct RootPaletteView: View {
     @ViewBuilder
     private func stateObservers(_ content: some View) -> some View {
         content
-            // Every show bumps focusToken: refocus search and drop any menu left open.
+            // Every show bumps focusToken so the search field refocuses.
             .onChange(of: vm.focusToken) {
                 searchFocused = !screen.hidesSearchField
-                openMenu = nil
             }
             .onChange(of: vm.query) {
                 vm.selection = 0
@@ -355,7 +354,7 @@ struct RootPaletteView: View {
                 vm.clipboardFilter = .all
                 vm.fileSearchFilter = .all
                 vm.fileSearchQuickLook = false
-                openMenu = nil
+                if menuOpen { closeMenus() }
                 scroll = ScrollIntent(kind: .top)
                 searchFocused = !screen.hidesSearchField
                 // Every way out of the Uninstall screen: back chevron, bare backspace, a fresh summon.
@@ -379,6 +378,7 @@ struct RootPaletteView: View {
             }
             // `prepare` may change nothing, so this intent still snaps the scroll to the origin.
             .onChange(of: vm.resetToken) {
+                if menuOpen { closeMenus() }
                 scroll = ScrollIntent(kind: .top)
             }
             // ⌘. arrives as a token rather than a key press. See `PaletteState.pinChordToken`.
@@ -388,6 +388,7 @@ struct RootPaletteView: View {
             // One optional makes "exactly one menu" structural; this only mirrors it for the panel.
             .onChange(of: openMenu) {
                 vm.menuOpen = menuOpen
+                guard menuOpen else { return }
                 syncMenuPanel(presenting: true)
             }
             // The hosted tree is its own hierarchy, so the highlight has to be pushed into it.
@@ -469,6 +470,7 @@ struct RootPaletteView: View {
                 return screen.pasteKeepingWindowOpen(at: selection) ? .handled : .ignored
             }
             .onKeyPress(.escape) {
+                if menuPanel.isClosing { return .handled }
                 // An open list closes itself first, exactly as the ⌘K menu does.
                 if vm.isControlListOpen { return .ignored }
                 switch PaletteEscapeAction.resolve(
@@ -1071,6 +1073,7 @@ struct RootPaletteView: View {
     }
 
     private func closeMenus() {
+        menuPanel.hide()
         openMenu = nil
         argumentOptionsField = nil
     }
@@ -1081,18 +1084,19 @@ struct RootPaletteView: View {
             menuPanel.hide()
             return
         }
-        let view = AnyView(content.view())
+        let view = content.view(corner)
         if presenting, let hostWindow {
             menuPanel.show(
                 view, corner: corner, parent: hostWindow, core: core,
-                clipsToMenuCorners: content.clipsToMenuCorners)
+                clipPath: content.clipPath, motion: content.motion)
         } else {
             menuPanel.update(
-                view, corner: corner, core: core, clipsToMenuCorners: content.clipsToMenuCorners)
+                view, corner: corner, core: core, clipPath: content.clipPath,
+                motion: content.motion)
         }
     }
 
-    private var menuCorner: MenuPanelController.Corner? {
+    private var menuCorner: MenuPanelCorner? {
         switch openMenu {
         case .app: .bottomLeading
         case .actions: .bottomTrailing

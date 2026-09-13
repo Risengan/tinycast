@@ -245,7 +245,9 @@ screens hold (see [palette.md](palette.md)).
   in-window overlay sampled the form and read as a different material however its fill was tuned.
   With its own borderless child panel it samples the desktop, and a picker and the actions menu are
   the same surface by construction rather than by matching. It keeps the panel's row pitch, icon
-  slot and overflow fade, and a focused control takes the system accent edge that Settings and the
+  slot and overflow fade; overflowing lists keep the native elastic boundary, while short lists do
+  not bounce against empty space. Its menu symbols are 14pt Medium and monochrome unless the
+  extension supplied a tint. A focused control takes the system accent edge that Settings and the
   shortcut recorder already draw. Opening a long list reveals its current selection; updates to
   row titles, icons, sections and date details refresh an open panel even when row IDs stay the same.
   Its metrics are restated in `ExtensionFormMetrics` rather than read off the panel: an extension's
@@ -296,12 +298,18 @@ screens hold (see [palette.md](palette.md)).
   feature's own scrolling ⌘K panel. Its rows are `ExtensionActionItem`, not `PopoverMenuItem`: an
   action's `icon` is a full `ImageLike`, so it resolves through `ExtensionImage` like every other
   extension icon and keeps its `tintColor` — which is what makes a palette of `{Icon.Circle, tintColor}`
-  rows read as colours rather than a column of grey circles. A destructive action with no tint of its
-  own falls back to red. The first action is the primary ↵ action; an action's own `shortcut` is
-  matched against modified keystrokes. `ExtensionCommandScreen.menuContent` hands the whole panel to
-  the palette as a `PaletteMenuContent`, so the palette never learns the row type — and a row's
-  handler is taken from the flattened `ExtensionAction` list rather than the drawn rows, so ↵ and the
-  panel fire the same one without resolving an icon per arrow key.
+  rows read as colours rather than a column of grey circles. Untinted symbols use the extension's
+  14pt Medium monochrome treatment; a destructive action with no tint of its own falls back to red.
+  Section boundaries add 6pt above and below their separator without moving ordinary rows. The
+  title shares the elastic scroller with the actions. The panel opens and closes from its
+  bottom-right attachment with extension-owned opacity and scale timing, briefly reaching 1.003;
+  its attached corner matches the footer button. The first action is the primary ↵ action; an
+  action's own `shortcut` is matched against modified keystrokes.
+  `ExtensionCommandScreen.menuContent` hands the whole panel to the palette as a
+  `PaletteMenuContent`, so the palette never learns the row type — and a row's handler is taken from
+  the flattened `ExtensionAction` list rather than the drawn rows, so ↵ and the panel fire the same
+  one without resolving an icon per arrow key. Header accessory menus use the same extension-owned
+  transition, anchored to the control that opened them.
 - **Feedback** — `showToast` stacks above the footer, `showHUD` is a centred pill, and `confirmAlert`
   goes through `DialogController` like every other question the app asks. Its dialog sits at
   `.modalPanel`, above the palette's `.floating`, so a view command keeps its screen behind it — and

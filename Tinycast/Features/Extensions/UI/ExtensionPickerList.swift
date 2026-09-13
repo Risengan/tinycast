@@ -64,11 +64,14 @@ struct ExtensionPickerList: View {
                     height: form.popoverListHeight(
                         rows: items.count, headers: headerCount)
                 )
-                // Without this a list shorter than the cap rubber-bands against nothing.
-                .scrollBounceBehavior(.basedOnSize)
+                .scrollBounceBehavior(
+                    form.popoverListContentHeight(rows: items.count, headers: headerCount)
+                        > form.popoverRowsMaxHeight
+                        ? .always : .basedOnSize
+                )
                 // `never`, not `hidden`: hidden still lets AppKit claim the scroller's gutter.
                 .scrollIndicators(.never)
-                .overflowFade()
+                .overflowFade(band: form.popoverFadeBand, includingTop: true)
                 .onChange(of: selection, initial: true) { proxy.scrollTo(selection) }
             }
         }

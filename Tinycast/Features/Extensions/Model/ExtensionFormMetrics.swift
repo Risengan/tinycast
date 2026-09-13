@@ -32,6 +32,7 @@ struct ExtensionFormMetrics {
     /// The ⌘K panel's pitch, restated: a launcher change must never move a form.
     var popoverRowHeight: CGFloat { scaled(36) }
     var popoverRowSpacing: CGFloat { 1 }
+    var popoverFadeBand: CGFloat { scaled(30) }
     /// A section heading inside a picker's list; shorter than a row, since it is a label.
     var popoverSectionHeaderHeight: CGFloat { scaled(24) }
     /// Six rows and half of the seventh, so a long list reads as scrollable rather than clipped.
@@ -53,12 +54,15 @@ struct ExtensionFormMetrics {
     }
 
     /// Exact, because every row is one known height: no measuring pass, and no greedy scroll view.
-    func popoverListHeight(rows: Int, headers: Int = 0) -> CGFloat {
+    func popoverListContentHeight(rows: Int, headers: Int = 0) -> CGFloat {
         guard rows > 0 else { return 0 }
         let pitch = popoverRowHeight + popoverRowSpacing
         let headings = CGFloat(headers) * (popoverSectionHeaderHeight + popoverRowSpacing)
-        let exact = CGFloat(rows) * pitch - popoverRowSpacing + headings
-        return min(exact, popoverRowsMaxHeight)
+        return CGFloat(rows) * pitch - popoverRowSpacing + headings
+    }
+
+    func popoverListHeight(rows: Int, headers: Int = 0) -> CGFloat {
+        min(popoverListContentHeight(rows: rows, headers: headers), popoverRowsMaxHeight)
     }
 
     /// The whole popover, list plus whatever chrome sits above it.

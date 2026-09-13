@@ -92,9 +92,10 @@ struct ExtensionPickerRow: View {
 
     var body: some View {
         Button(action: onActivate) {
-            HStack(spacing: metrics.spacing.sm) {
+            HStack(spacing: metrics.spacing.md) {
                 if let icon {
-                    ExtensionIconView(resolved: icon, size: metrics.size.menuIcon)
+                    ExtensionIconView(
+                        resolved: icon, size: metrics.size.menuIcon, usesMenuSymbolStyle: true)
                 }
                 Text(title)
                     .font(metrics.typography.menuRow)

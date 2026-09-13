@@ -9,14 +9,29 @@ private struct Metrics {
     /// The glyph slot plus its breathing room — the tallest thing a row contains.
     var rowHeight: CGFloat { interface.size.menuIcon + interface.spacing.md * 2 }
     var rowSpacing: CGFloat { 1 }
+    var separatorSpacing: CGFloat { interface.spacing.sm }
+    var fadeBand: CGFloat { interface.scaled(30) }
     /// Six rows and half of the seventh, so a long panel reads as scrollable rather than clipped.
     var visibleRows: CGFloat { 6.5 }
     /// Rounded: a fractional height lands the glass edge on a half pixel.
-    var maxHeight: CGFloat { (visibleRows * (rowHeight + rowSpacing)).rounded() }
+    var rowsMaxHeight: CGFloat { (visibleRows * (rowHeight + rowSpacing)).rounded() }
+    var headerHeight: CGFloat {
+        interface.size.menuSectionHeader + interface.spacing.xs * 1.5 + rowSpacing
+    }
 
     /// Exact, because every row is one known height: no measuring pass, and no greedy scroll view.
-    func height(rows: Int) -> CGFloat {
-        min(CGFloat(rows) * (rowHeight + rowSpacing) - rowSpacing, maxHeight)
+    func contentHeight(items: [ExtensionActionItem], hasHeader: Bool) -> CGFloat {
+        let rows = CGFloat(items.count)
+        let separators = CGFloat(items.dropFirst().filter(\.startsSection).count)
+        let regularGaps = max(rows - 1 - separators, 0)
+        let separatorHeight = separatorSpacing * 2 + Theme.Size.hairline
+        let header = hasHeader ? headerHeight : 0
+        return header + rows * rowHeight + regularGaps * rowSpacing
+            + separators * separatorHeight
+    }
+
+    func maximumHeight(hasHeader: Bool) -> CGFloat {
+        rowsMaxHeight + (hasHeader ? headerHeight : 0)
     }
 }
 
@@ -26,9 +41,10 @@ struct ExtensionActionItem {
     let icon: ExtensionImage.Resolved
     var shortcut: String?
     var isDestructive = false
+    var startsSection = false
 }
 
-/// The ⌘K panel of a running command; not `PopoverMenu`, because it scrolls.
+/// The ⌘K panel of a running command; extension artwork and tints stay feature-owned.
 struct ExtensionActionsPanel: View {
     @Environment(\.metrics) private var metrics
     var header: String?
@@ -44,53 +60,78 @@ struct ExtensionActionsPanel: View {
     private var panel: Metrics { Metrics(interface: metrics) }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 1) {
-            if let header {
-                Text(header)
-                    .font(metrics.typography.sectionHeader)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-                    .truncationMode(.tail)
-                    .padding(.horizontal, metrics.spacing.lg)
-                    .padding(.top, metrics.spacing.xs)
-                    .padding(.bottom, metrics.spacing.xs / 2)
-            }
-            // The header stays put while rows move under it.
-            ScrollViewReader { proxy in
-                ScrollView {
-                    VStack(alignment: .leading, spacing: panel.rowSpacing) {
-                        // Index-as-id is stable: a panel's rows never reorder while it is open.
-                        ForEach(items.indices, id: \.self) { index in
+        let hasHeader = header != nil
+        let contentHeight = panel.contentHeight(items: items, hasHeader: hasHeader)
+        let maximumHeight = panel.maximumHeight(hasHeader: hasHeader)
+        let shape = UnevenRoundedRectangle(
+            topLeadingRadius: metrics.radius.menuPanel,
+            bottomLeadingRadius: metrics.radius.menuPanel,
+            bottomTrailingRadius: metrics.size.menuButton / 2,
+            topTrailingRadius: metrics.radius.menuPanel,
+            style: .continuous)
+        return ScrollViewReader { proxy in
+            ScrollView {
+                VStack(alignment: .leading, spacing: 0) {
+                    if let header {
+                        Text(header)
+                            .font(metrics.typography.sectionHeader)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                            .truncationMode(.tail)
+                            .frame(height: metrics.size.menuSectionHeader, alignment: .leading)
+                            .padding(.horizontal, metrics.spacing.lg)
+                            .padding(.top, metrics.spacing.xs)
+                            .padding(.bottom, metrics.spacing.xs / 2)
+                        Color.clear.frame(height: panel.rowSpacing)
+                    }
+                    // Index-as-id is stable: a panel's rows never reorder while it is open.
+                    ForEach(items.indices, id: \.self) { index in
+                        VStack(alignment: .leading, spacing: 0) {
+                            rowBoundary(before: index)
                             ExtensionActionRow(
                                 item: items[index],
                                 selected: index == selection,
                                 onActivate: { onActivate(index) }
                             )
-                            .id(index)
                             .onContinuousHover { if case .active = $0 { hover(index) } }
                         }
+                        .id(index)
                     }
                 }
-                .frame(height: panel.height(rows: items.count))
-                // Without this a panel shorter than the cap rubber-bands against nothing.
-                .scrollBounceBehavior(.basedOnSize)
-                // `never`, not `hidden`: hidden still lets AppKit claim the scroller's gutter.
-                .scrollIndicators(.never)
-                .overflowFade()
-                .onChange(of: selection) {
-                    let movedByPointer = hoverSelection == selection
-                    hoverSelection = nil
-                    guard !movedByPointer else { return }
-                    // No anchor: reveal the row, never re-centre the list around it.
-                    proxy.scrollTo(selection)
-                }
+            }
+            .frame(height: min(contentHeight, maximumHeight))
+            .scrollBounceBehavior(
+                contentHeight > maximumHeight ? .always : .basedOnSize
+            )
+            // `never`, not `hidden`: hidden still lets AppKit claim the scroller's gutter.
+            .scrollIndicators(.never)
+            .overflowFade(band: panel.fadeBand, includingTop: true)
+            .onChange(of: selection) {
+                let movedByPointer = hoverSelection == selection
+                hoverSelection = nil
+                guard !movedByPointer else { return }
+                // No anchor: reveal the row, never re-centre the list around it.
+                proxy.scrollTo(selection)
             }
         }
         .padding(metrics.spacing.sm)
         .frame(width: panel.width)
-        .glassEffect(
-            .regular, in: RoundedRectangle(cornerRadius: metrics.radius.menuPanel, style: .continuous)
-        )
+        .glassEffect(.regular, in: shape)
+    }
+
+    @ViewBuilder
+    private func rowBoundary(before index: Int) -> some View {
+        if index > 0, items[index].startsSection {
+            Rectangle()
+                .fill(Theme.Colors.separator)
+                .frame(height: Theme.Size.hairline)
+                .padding(.horizontal, metrics.spacing.md)
+                .padding(.vertical, panel.separatorSpacing)
+                .allowsHitTesting(false)
+                .accessibilityHidden(true)
+        } else if index > 0 {
+            Color.clear.frame(height: panel.rowSpacing)
+        }
     }
 
     /// Armed only once the pointer has moved of its own accord, so a scroll past it lights nothing.
@@ -112,8 +153,9 @@ private struct ExtensionActionRow: View {
 
     var body: some View {
         Button(action: onActivate) {
-            HStack(spacing: metrics.spacing.sm) {
-                icon
+            HStack(spacing: metrics.spacing.md) {
+                ExtensionIconView(
+                    resolved: item.icon, size: metrics.size.menuIcon, usesMenuSymbolStyle: true)
                 Text(item.title)
                     .font(metrics.typography.menuRow)
                     .foregroundStyle(item.isDestructive ? Color.red : Color.primary)
@@ -140,19 +182,5 @@ private struct ExtensionActionRow: View {
             )
         }
         .buttonStyle(.plain)
-    }
-
-    /// Drawn here, not by `ExtensionIconView`, whose scale would shrink the 20pt slot.
-    @ViewBuilder
-    private var icon: some View {
-        if case .symbol(let name) = item.icon.source {
-            Image(systemName: name)
-                .font(metrics.typography.menuIcon)
-                .symbolRenderingMode(item.icon.tint == nil ? .hierarchical : .monochrome)
-                .foregroundStyle(item.icon.tint ?? Color.secondary)
-                .frame(width: metrics.size.menuIcon, height: metrics.size.menuIcon)
-        } else {
-            ExtensionIconView(resolved: item.icon, size: metrics.size.menuIcon)
-        }
     }
 }

@@ -65,12 +65,35 @@ struct PopoverMenuContent {
 
 /// The palette's own menu, hosted by `MenuPanelController` in a window of its own.
 struct PopoverMenu: View {
+    enum Attachment {
+        case none
+        case bottomLeading
+        case bottomTrailing
+    }
+
+    struct SurfaceShape: Shape {
+        let attachment: Attachment
+        let radius: CGFloat
+        let attachedRadius: CGFloat
+
+        func path(in rect: CGRect) -> Path {
+            UnevenRoundedRectangle(
+                topLeadingRadius: radius,
+                bottomLeadingRadius: attachment == .bottomLeading ? attachedRadius : radius,
+                bottomTrailingRadius: attachment == .bottomTrailing ? attachedRadius : radius,
+                topTrailingRadius: radius,
+                style: .continuous
+            ).path(in: rect)
+        }
+    }
+
     var header: String?
     let items: [PopoverMenuItem]
     @Binding var selection: Int
     /// Fixed, never intrinsic: a width tracking the longest row would jitter as rows change.
     var width: CGFloat?
     let onActivate: (Int) -> Void
+    var attachment = Attachment.none
 
     /// The palette arms this only once the pointer has moved of its own accord.
     @Environment(PaletteState.self) private var palette
@@ -79,15 +102,13 @@ struct PopoverMenu: View {
     @State private var pointerSelection: Int?
 
     var body: some View {
-        VStack(alignment: .leading, spacing: metrics.size.menuRowSpacing) {
-            if let header { headerLabel(header) }
-            rows
-        }
-        .padding(metrics.spacing.sm)
-        .frame(width: width ?? metrics.size.menuWidth)
-        .glassEffect(
-            .regular, in: RoundedRectangle(cornerRadius: metrics.radius.menuPanel, style: .continuous)
-        )
+        let shape = SurfaceShape(
+            attachment: attachment, radius: metrics.radius.menuPanel,
+            attachedRadius: metrics.size.menuButton / 2)
+        rows
+            .padding(metrics.spacing.sm)
+            .frame(width: width ?? metrics.size.menuWidth)
+            .glassEffect(.regular, in: shape)
     }
 
     private func headerLabel(_ text: String) -> some View {
@@ -96,47 +117,44 @@ struct PopoverMenu: View {
             .foregroundStyle(.secondary)
             .lineLimit(1)
             .truncationMode(.tail)
+            .frame(height: metrics.size.menuSectionHeader, alignment: .leading)
             .padding(.horizontal, metrics.spacing.lg)
             .padding(.top, metrics.spacing.xs)
             .padding(.bottom, metrics.spacing.xs / 2)
     }
 
-    /// Rows alone scroll, under a header that keeps naming what they act on.
+    /// The title and rows move as one surface, while row IDs still drive keyboard reveal.
     private var rows: some View {
         ScrollViewReader { proxy in
             ScrollView {
-                VStack(alignment: .leading, spacing: metrics.size.menuRowSpacing) {
+                VStack(alignment: .leading, spacing: 0) {
+                    if let header {
+                        headerLabel(header)
+                        Color.clear.frame(height: metrics.size.menuRowSpacing)
+                    }
                     // Index-as-id is stable: a menu's rows never reorder while it is open.
                     ForEach(items.indices, id: \.self) { index in
                         VStack(alignment: .leading, spacing: 0) {
-                            if let sectionTitle = items[index].sectionTitle {
-                                sectionLabel(sectionTitle, isFirst: index == 0)
+                            rowBoundary(before: index)
+                            VStack(alignment: .leading, spacing: 0) {
+                                if let sectionTitle = items[index].sectionTitle {
+                                    sectionLabel(sectionTitle, isFirst: index == 0)
+                                }
+                                PopoverMenuRow(item: items[index], selected: index == selection) {
+                                    onActivate(index)
+                                }
                             }
-                            PopoverMenuRow(item: items[index], selected: index == selection) {
-                                onActivate(index)
-                            }
-                        }
-                        .overlay(alignment: .top) {
-                            if index > 0, items[index].startsSection {
-                                Rectangle()
-                                    .fill(Theme.Colors.separator)
-                                    .frame(height: Theme.Size.hairline)
-                                    .padding(.horizontal, metrics.spacing.md)
-                                    .offset(y: -metrics.size.menuRowSpacing)
-                                    .allowsHitTesting(false)
-                                    .accessibilityHidden(true)
-                            }
+                            .onContinuousHover { if case .active = $0 { hover(index) } }
                         }
                         .id(index)
-                        .onContinuousHover { if case .active = $0 { hover(index) } }
                     }
                 }
             }
             .frame(height: viewportHeight)
             // `never`, not `hidden`: hidden still lets AppKit claim the scroller's gutter.
             .scrollIndicators(.never)
-            .scrollBounceBehavior(.basedOnSize)
-            .overflowFade()
+            .scrollBounceBehavior(contentHeight > viewportCapacity ? .always : .basedOnSize)
+            .overflowFade(band: metrics.scaled(Theme.Size.menuOverflowFade), includingTop: true)
             .onChange(of: selection) {
                 let byPointer = pointerSelection == selection
                 pointerSelection = nil
@@ -146,16 +164,48 @@ struct PopoverMenu: View {
         }
     }
 
+    @ViewBuilder
+    private func rowBoundary(before index: Int) -> some View {
+        if index > 0, items[index].startsSection {
+            Rectangle()
+                .fill(Theme.Colors.separator)
+                .frame(height: Theme.Size.hairline)
+                .padding(.horizontal, metrics.spacing.md)
+                .padding(.vertical, metrics.spacing.sm)
+                .allowsHitTesting(false)
+                .accessibilityHidden(true)
+        } else if index > 0 {
+            Color.clear.frame(height: metrics.size.menuRowSpacing)
+        }
+    }
+
     /// Exact, because every row is one known height: no measuring pass, and no greedy scroll view.
     private var viewportHeight: CGFloat {
+        min(contentHeight, viewportCapacity)
+    }
+
+    private var viewportCapacity: CGFloat { metrics.size.menuRowsMaxHeight + headerExtent }
+
+    private var contentHeight: CGFloat {
         let rows = CGFloat(items.count)
+        let separators = CGFloat(items.dropFirst().filter(\.startsSection).count)
+        let regularGaps = max(rows - 1 - separators, 0)
+        let separatorHeight = metrics.spacing.sm * 2 + Theme.Size.hairline
         var contentHeight =
-            rows * metrics.size.menuRowHeight + max(rows - 1, 0) * metrics.size.menuRowSpacing
+            headerExtent
+            + rows * metrics.size.menuRowHeight + regularGaps * metrics.size.menuRowSpacing
+            + separators * separatorHeight
         for (index, item) in items.enumerated() where item.sectionTitle != nil {
             contentHeight += metrics.size.menuSectionHeader + metrics.spacing.xxs
             if index > 0 { contentHeight += metrics.spacing.md }
         }
-        return min(contentHeight, metrics.size.menuRowsMaxHeight)
+        return contentHeight
+    }
+
+    private var headerExtent: CGFloat {
+        guard header != nil else { return 0 }
+        return metrics.size.menuSectionHeader + metrics.spacing.xs * 1.5
+            + metrics.size.menuRowSpacing
     }
 
     /// Tighter below than above, so a header belongs to the rows under it, not between two groups.
@@ -192,8 +242,7 @@ private struct PopoverMenuRow: View {
 
     var body: some View {
         Button(action: onActivate) {
-            // `sm`, not `lg`: the icon slot carries its own slack, so the gap reads wider.
-            HStack(spacing: metrics.spacing.sm) {
+            HStack(spacing: metrics.spacing.md) {
                 if item.isLoading {
                     ProgressView()
                         .controlSize(.small)
@@ -204,9 +253,15 @@ private struct PopoverMenuRow: View {
                         EmptyView()
                     case .symbol(let name):
                         Image(systemName: name)
-                            .font(metrics.typography.menuIcon)
-                            .symbolRenderingMode(.hierarchical)
-                            .foregroundStyle(item.isDestructive ? Color.red : Color.secondary)
+                            .font(
+                                .system(
+                                    size: metrics.scaled(Theme.Typography.menuSymbolSize),
+                                    weight: Theme.Typography.menuSymbolWeight)
+                            )
+                            .symbolRenderingMode(.monochrome)
+                            .foregroundStyle(
+                                item.isDestructive ? Color.red : Theme.Colors.menuSymbol
+                            )
                             .frame(width: metrics.size.menuIcon, height: metrics.size.menuIcon)
                     case .asset(let name):
                         Image(name)

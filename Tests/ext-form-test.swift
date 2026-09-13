@@ -107,6 +107,10 @@ struct ExtensionFormTests {
             ExtensionFormMetrics.base.popoverListHeight(rows: 40)
                 == ExtensionFormMetrics.base.popoverRowsMaxHeight)
         check(
+            "the uncapped height reports that a long list can bounce",
+            ExtensionFormMetrics.base.popoverListContentHeight(rows: 40)
+                > ExtensionFormMetrics.base.popoverRowsMaxHeight)
+        check(
             "the cap is a half row, so it reads as scrollable",
             ExtensionFormMetrics.base.popoverVisibleRows
                 != ExtensionFormMetrics.base.popoverVisibleRows
