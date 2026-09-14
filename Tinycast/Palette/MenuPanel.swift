@@ -111,6 +111,8 @@ final class MenuPanelController {
         let container = NSView(frame: .zero)
         container.addSubview(view)
         panel.contentView = container
+        // AppKit owns the hosting layer's first layout; let it settle before applying our anchor.
+        panel.displayIfNeeded()
         hosting = view
     }
 
