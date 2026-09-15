@@ -284,10 +284,41 @@ struct RootPaletteView: View {
             selection: sel)
     }
 
+    /// The emoji grid's observers, split out so `stateObservers` stays within type-checker reach.
+    @ViewBuilder
+    private func emojiObservers(_ content: some View) -> some View {
+        content
+            .onChange(of: vm.emojiCategoryFilter) {
+                vm.selection = 0
+                scroll = ScrollIntent(kind: .top)
+            }
+            // ⌘. can alter the open Actions menu, so refresh its rows without reopening it.
+            .onChange(of: core.pinnedEmoji.revision) {
+                refreshActionsMenu()
+            }
+            .onChange(of: vm.emojiGridColumnsOverride) {
+                scroll = ScrollIntent(kind: .follow)
+                refreshActionsMenu()
+            }
+            .onChange(of: settings.emojiGridColumns) {
+                guard vm.mode == .emoji, vm.emojiGridColumnsOverride == nil else { return }
+                scroll = ScrollIntent(kind: .follow)
+                refreshActionsMenu()
+            }
+            .onChange(of: vm.emojiSizeCommandToken) {
+                guard let command = vm.emojiSizeCommand else { return }
+                switch command {
+                case .actualSize: performShortcut(.actualSize)
+                case .zoomIn: performShortcut(.zoomIn)
+                case .zoomOut: performShortcut(.zoomOut)
+                }
+            }
+    }
+
     /// Split from `body` for the same reason `keyHandlers` is: one chain cannot carry them all.
     @ViewBuilder
     private func stateObservers(_ content: some View) -> some View {
-        content
+        emojiObservers(content)
             // Every show bumps focusToken so the search field refocuses.
             .onChange(of: vm.focusToken) {
                 searchFocused = !screen.hidesSearchField
@@ -324,23 +355,6 @@ struct RootPaletteView: View {
                 vm.selection = 0
                 scroll = ScrollIntent(kind: .top)
                 fileSearch.search(vm.query, filter: vm.fileSearchFilter)
-            }
-            .onChange(of: vm.emojiCategoryFilter) {
-                vm.selection = 0
-                scroll = ScrollIntent(kind: .top)
-            }
-            // ⌘. can alter the open Actions menu, so refresh its rows without reopening it.
-            .onChange(of: core.pinnedEmoji.revision) {
-                refreshActionsMenu()
-            }
-            .onChange(of: vm.emojiGridColumnsOverride) {
-                scroll = ScrollIntent(kind: .follow)
-                refreshActionsMenu()
-            }
-            .onChange(of: settings.emojiGridColumns) {
-                guard vm.mode == .emoji, vm.emojiGridColumnsOverride == nil else { return }
-                scroll = ScrollIntent(kind: .follow)
-                refreshActionsMenu()
             }
             .onChange(of: vm.mode) {
                 vm.selection = 0
@@ -381,14 +395,6 @@ struct RootPaletteView: View {
             // ⌘1…⌘0 arrives as a slot index from AppKit keyCode matching.
             .onChange(of: vm.favoriteSlotToken) {
                 if let index = vm.favoriteSlotIndex { performShortcut(.favoriteSlot(index)) }
-            }
-            .onChange(of: vm.emojiSizeCommandToken) {
-                guard let command = vm.emojiSizeCommand else { return }
-                switch command {
-                case .actualSize: performShortcut(.actualSize)
-                case .zoomIn: performShortcut(.zoomIn)
-                case .zoomOut: performShortcut(.zoomOut)
-                }
             }
             // One optional makes "exactly one menu" structural; this only mirrors it for the panel.
             .onChange(of: openMenu) {
