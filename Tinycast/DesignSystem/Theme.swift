@@ -21,11 +21,15 @@ enum Theme {
         static let chatFollowTailSlack: CGFloat = 44
         /// Space above every header but the first, reading as the previous section's close.
         static let sectionSpacing: CGFloat = 12
+        /// Emoji tiles need a little more separation so adjacent category grids stay distinct.
+        static let emojiSectionSpacing: CGFloat = 14
     }
 
     enum Radius {
         static let panel: CGFloat = 26
         static let row: CGFloat = 10
+        /// Emoji tiles are roomier than list rows, so their corners take one larger step.
+        static let emojiCell: CGFloat = 12
         static let menu: CGFloat = 6
         /// Hover highlight behind a popover menu row.
         static let menuRow: CGFloat = 10
@@ -121,10 +125,12 @@ enum Theme {
         /// The uninstall list's leading checkbox / lock glyph.
         static let checkbox: CGFloat = 16
         static let clipboardListWidth: CGFloat = 290
+        /// Symmetric clearance between the emoji grid and both panel edges.
+        static let emojiGridInset: CGFloat = 16
         static let emojiCell: CGFloat = 56
         static let menuWidth: CGFloat = 276
-        /// The clipboard type filter's menu; `menuWidth` is far too wide for six short rows.
-        static let clipboardFilterMenuWidth: CGFloat = 200
+        /// Fitted header menus never squeeze their row chrome below a comfortable compact width.
+        static let menuMinimumWidth: CGFloat = 140
         /// Stated, not padded: the cap below counts rows, so a capped menu would land mid-row.
         static let menuRowHeight: CGFloat = menuIcon + Spacing.md * 2
         static let menuRowSpacing: CGFloat = 1
@@ -171,6 +177,8 @@ enum Theme {
         static let interfaceSizeSegment: CGFloat = 40
         /// The sidebar's search field; matches a grouped `Form` row's control height.
         static let settingsSearchField: CGFloat = 28
+        /// One density preview; five fit across the Emoji settings detail pane.
+        static let emojiSettingsGridPreview: CGFloat = 72
         /// The layout editor. Height is stated so selecting an entry cannot resize the sheet.
         static let layoutEditorSheet = CGSize(width: 900, height: 660)
         /// The inspector column; the preview takes the rest, keeping the split two-to-one.
@@ -237,6 +245,8 @@ enum Theme {
         static let tooltip: TimeInterval = 0.15
         /// A control lighting up under the pointer; short enough to feel like a response.
         static let hover: TimeInterval = 0.12
+        /// A pop-up chevron turning between its closed and open directions.
+        static let menuChevron: TimeInterval = 0.34
         static let copyFeedback: TimeInterval = 1.2
         static let chatFooter: TimeInterval = 0.12
         /// A Settings search result scrolling its section into view, then the pulse that marks it.
@@ -257,6 +267,9 @@ enum Theme {
         static let expansionTiming = CAMediaTimingFunction(controlPoints: 0.2, 0.7, 0.2, 1)
         static let settleTiming = CAMediaTimingFunction(controlPoints: 0.42, 0, 0.58, 1)
         static let exitTiming = CAMediaTimingFunction(controlPoints: 0.4, 0, 1, 1)
+        /// Starts promptly and eases gently into the chevron's final direction.
+        static let chevronAnimation = Animation.timingCurve(
+            0.16, 1, 0.3, 1, duration: Theme.Duration.menuChevron)
     }
 
     /// System text styles (not hardcoded sizes) so the UI honors Dynamic Type.
@@ -294,7 +307,7 @@ enum Theme {
         static let menuShortcut = Font.callout
         static let menuIcon = Font.body
         static let menuSymbolSize: CGFloat = 14
-        static let menuSymbolWeight = Font.Weight.medium
+        static let menuSymbolNSWeight = NSFont.Weight.medium
         static let noteTitle = Font.headline
     }
 
@@ -340,6 +353,14 @@ enum Theme {
         static let selection = ramp(dark: 0.10, light: 0.09)
         /// Mouse hover: a fainter layer, visually distinct from selection.
         static let rowHover = ramp(dark: 0.05, light: 0.045)
+        /// Emoji grid chrome: a quiet tile at rest, with two legible rings on interaction.
+        static let emojiCell = ramp(dark: 0.045, light: 0.04)
+        static let emojiHoverBorder = ramp(dark: 0.42, light: 0.34)
+        static let emojiSelectionBorder = adaptive(
+            dark: NSColor(srgbRed: 0.96, green: 0.90, blue: 0.72, alpha: 0.92),
+            light: .srgbInk(0, alpha: 0.72))
+        static let emojiInnerBorder = adaptive(
+            dark: .srgbInk(0, alpha: 0.72), light: .srgbInk(1, alpha: 0.72))
         static let menuHover = ramp(dark: 0.10, light: 0.09)
         static let separator = ramp(dark: 0.10, light: 0.12)
         /// Small control surfaces: kbd chips, glyph tiles.

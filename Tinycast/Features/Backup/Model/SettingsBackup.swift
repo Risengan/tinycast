@@ -12,6 +12,7 @@ struct SettingsBackup: Codable {
     var hiddenLauncherItems: [String]?
     var hiddenLauncherKinds: [String]?
     var launcherAliases: [String: String]?
+    var pinnedEmoji: [String]?
 
     /// Enums store by raw value, so an unknown one is ignored rather than failing.
     struct SettingsData: Codable {
@@ -26,6 +27,7 @@ struct SettingsBackup: Codable {
         var hyperKeyIncludesShift: Bool?
         var hyperKeyQuickPress: String?
         var emojiSkinTone: String?
+        var emojiGridColumns: Int?
         var showInMenuBar: Bool?
         var popToRootSeconds: Int?
         var escapeKeyBehavior: String?
@@ -99,6 +101,7 @@ struct SettingsBackup: Codable {
         var favorites = 0
         var hiddenItems = 0
         var aliases = 0
+        var pinnedEmoji = 0
         var customCommands = 0
         var quicklinks = 0
         var windowLayouts = 0
@@ -122,6 +125,7 @@ extension SettingsBackup {
             hyperKeyIncludesShift: s.hyperKeyIncludesShift,
             hyperKeyQuickPress: s.hyperKeyQuickPress.rawValue,
             emojiSkinTone: s.emojiSkinTone.rawValue,
+            emojiGridColumns: s.emojiGridColumns.rawValue,
             showInMenuBar: UserDefaults.standard.object(forKey: SettingsKey.showInMenuBar) as? Bool
                 ?? true,
             popToRootSeconds: s.popToRootTimeout.rawValue,
@@ -210,6 +214,7 @@ extension SettingsBackup {
         backup.hiddenLauncherItems = Array(core.visibility.hiddenItemKeys)
         backup.hiddenLauncherKinds = Array(core.visibility.disabledKinds)
         backup.launcherAliases = core.aliases.aliases
+        backup.pinnedEmoji = core.pinnedEmoji.glyphs
         return backup
     }
 
@@ -244,6 +249,10 @@ extension SettingsBackup {
             core.aliases.replace(launcherAliases)
             // Counted after the store, which drops blanks the file may carry.
             summary.aliases = core.aliases.aliases.count
+        }
+        if let pinnedEmoji {
+            core.pinnedEmoji.replace(pinnedEmoji)
+            summary.pinnedEmoji = core.pinnedEmoji.glyphs.count
         }
         return summary
     }
@@ -286,6 +295,10 @@ extension SettingsBackup {
         }
         if let raw = s.emojiSkinTone, let tone = EmojiSkinTone(rawValue: raw) {
             settings.emojiSkinTone = tone
+            count += 1
+        }
+        if let raw = s.emojiGridColumns, let columns = EmojiGridColumns(rawValue: raw) {
+            settings.emojiGridColumns = columns
             count += 1
         }
         if let show = s.showInMenuBar {

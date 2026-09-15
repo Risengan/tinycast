@@ -70,8 +70,9 @@ struct RootPaletteView: View {
                 store: snippets, core: core, vm: vm, openActions: openActions)
         case .emoji:
             return EmojiScreen(
-                index: emojiIndex, frequent: frequentEmoji, core: core, vm: vm,
-                tone: settings.emojiSkinTone, openActions: openActions)
+                index: emojiIndex, frequent: frequentEmoji, pinned: core.pinnedEmoji, core: core, vm: vm,
+                tone: settings.emojiSkinTone, defaultColumns: settings.emojiGridColumns,
+                openActions: openActions, scrollToFollow: { scroll = ScrollIntent(kind: .follow) })
         case .fileSearch:
             return FileSearchScreen(
                 session: fileSearch, core: core, vm: vm, openActions: openActions)
@@ -143,8 +144,11 @@ struct RootPaletteView: View {
     /// The clipboard type filter's rows; activating one is the only way the filter changes.
     private var clipboardFilterContent: PopoverMenuContent {
         PopoverMenuContent(
-            items: ClipboardFilter.allCases.map { filter in
-                PopoverMenuItem(title: filter.title, systemImage: filter.systemImage) {
+            items: ClipboardFilter.allCases.enumerated().map { index, filter in
+                PopoverMenuItem(
+                    title: filter.title, systemImage: filter.systemImage,
+                    startsSection: index == 1
+                ) {
                     vm.clipboardFilter = filter
                 }
             })
@@ -156,6 +160,19 @@ struct RootPaletteView: View {
             items: FileSearchFilter.allCases.map { filter in
                 PopoverMenuItem(title: filter.title, systemImage: filter.systemImage) {
                     vm.fileSearchFilter = filter
+                }
+            })
+    }
+
+    /// All Categories stays above the divider; the remaining rows match their section order.
+    private var emojiCategoryContent: PopoverMenuContent {
+        PopoverMenuContent(
+            items: EmojiCategoryFilter.allCases.enumerated().map { index, filter in
+                PopoverMenuItem(
+                    title: filter.title, systemImage: filter.systemImage,
+                    startsSection: index == 1
+                ) {
+                    vm.emojiCategoryFilter = filter
                 }
             })
     }
@@ -187,30 +204,22 @@ struct RootPaletteView: View {
             return PaletteMenuContent(
                 popover: appMenuContent, selection: $menuSelection, onActivate: activateMenuItem)
         case .clipboardFilter:
-            return PaletteMenuContent(
-                popover: clipboardFilterContent, selection: $menuSelection,
-                width: headerMenuWidth, onActivate: activateMenuItem)
+            return fittedHeaderMenu(clipboardFilterContent)
         case .fileSearchFilter:
-            return PaletteMenuContent(
-                popover: fileSearchFilterContent, selection: $menuSelection,
-                width: headerMenuWidth, onActivate: activateMenuItem)
+            return fittedHeaderMenu(fileSearchFilterContent)
+        case .emojiCategory:
+            return fittedHeaderMenu(emojiCategoryContent)
         case .aiModel:
-            return PaletteMenuContent(
-                popover: AIModelMenu.models(coordinator: core.aiChatCoordinator),
-                selection: $menuSelection, width: headerMenuWidth, onActivate: activateMenuItem)
+            return fittedHeaderMenu(AIModelMenu.models(coordinator: core.aiChatCoordinator))
         case .aiReasoning:
-            return PaletteMenuContent(
-                popover: AIModelMenu.reasoning(
-                    coordinator: core.aiChatCoordinator, settings: core.aiSettings),
-                selection: $menuSelection,
-                width: headerMenuWidth, onActivate: activateMenuItem)
+            return fittedHeaderMenu(
+                AIModelMenu.reasoning(
+                    coordinator: core.aiChatCoordinator, settings: core.aiSettings))
         case .argumentOptions:
             guard let field = argumentOptionsField,
                 let popover = headerAccessory?.optionsMenu(field)
             else { return nil }
-            return PaletteMenuContent(
-                popover: popover, selection: $menuSelection, width: headerMenuWidth,
-                onActivate: activateMenuItem)
+            return fittedHeaderMenu(popover)
         case .extensionAccessory:
             return extensionCommandScreen?.searchAccessoryMenu(
                 menuSelection: $menuSelection, onActivate: activateMenuItem)
@@ -316,10 +325,29 @@ struct RootPaletteView: View {
                 scroll = ScrollIntent(kind: .top)
                 fileSearch.search(vm.query, filter: vm.fileSearchFilter)
             }
+            .onChange(of: vm.emojiCategoryFilter) {
+                vm.selection = 0
+                scroll = ScrollIntent(kind: .top)
+            }
+            // ⌘. can alter the open Actions menu, so refresh its rows without reopening it.
+            .onChange(of: core.pinnedEmoji.revision) {
+                refreshActionsMenu()
+            }
+            .onChange(of: vm.emojiGridColumnsOverride) {
+                scroll = ScrollIntent(kind: .follow)
+                refreshActionsMenu()
+            }
+            .onChange(of: settings.emojiGridColumns) {
+                guard vm.mode == .emoji, vm.emojiGridColumnsOverride == nil else { return }
+                scroll = ScrollIntent(kind: .follow)
+                refreshActionsMenu()
+            }
             .onChange(of: vm.mode) {
                 vm.selection = 0
                 vm.clipboardFilter = .all
                 vm.fileSearchFilter = .all
+                vm.emojiCategoryFilter = .all
+                vm.emojiGridColumnsOverride = nil
                 vm.fileSearchQuickLook = false
                 if menuOpen { closeMenus() }
                 scroll = ScrollIntent(kind: .top)
@@ -354,6 +382,14 @@ struct RootPaletteView: View {
             .onChange(of: vm.favoriteSlotToken) {
                 if let index = vm.favoriteSlotIndex { performShortcut(.favoriteSlot(index)) }
             }
+            .onChange(of: vm.emojiSizeCommandToken) {
+                guard let command = vm.emojiSizeCommand else { return }
+                switch command {
+                case .actualSize: performShortcut(.actualSize)
+                case .zoomIn: performShortcut(.zoomIn)
+                case .zoomOut: performShortcut(.zoomOut)
+                }
+            }
             // One optional makes "exactly one menu" structural; this only mirrors it for the panel.
             .onChange(of: openMenu) {
                 vm.menuOpen = menuOpen
@@ -380,7 +416,7 @@ struct RootPaletteView: View {
         content
             // Repeat included: holding the key keeps stepping, as the bare-key form does.
             .onKeyPress(keys: [.downArrow], phases: [.down, .repeat]) { press in
-                if let reorder = moveFavorite(1, modifiers: press.modifiers) { return reorder }
+                if let reorder = movePinnedOrFavorite(1, modifiers: press.modifiers) { return reorder }
                 // A control's own list owns every navigation key while it is up.
                 if vm.isControlListOpen { return .ignored }
                 if isCollapsed {
@@ -396,7 +432,7 @@ struct RootPaletteView: View {
                 return moveVertically(1)
             }
             .onKeyPress(keys: [.upArrow], phases: [.down, .repeat]) { press in
-                if let reorder = moveFavorite(-1, modifiers: press.modifiers) { return reorder }
+                if let reorder = movePinnedOrFavorite(-1, modifiers: press.modifiers) { return reorder }
                 if vm.isControlListOpen { return .ignored }
                 if isCollapsed { return .ignored }
                 if menuOpen {
@@ -525,6 +561,7 @@ struct RootPaletteView: View {
                 case .extensionAccessory: toggleExtensionSearchAccessory()
                 case .clipboardFilter: toggleClipboardFilter()
                 case .fileSearchFilter: toggleFileSearchFilter()
+                case .emojiCategory: toggleEmojiCategory()
                 case .ignored: return .ignored
                 }
                 return .handled
@@ -592,6 +629,15 @@ struct RootPaletteView: View {
                     title: vm.fileSearchFilter.title, systemImage: vm.fileSearchFilter.systemImage,
                     isOpen: openMenu == .fileSearchFilter, help: "Filter by type  ⌘P",
                     action: toggleFileSearchFilter)
+            }
+            if !isCollapsed, vm.mode == .emoji {
+                headerGutter(width: metrics.spacing.md)
+                HeaderMenuButton(
+                    title: vm.emojiCategoryFilter.title,
+                    systemImage: vm.emojiCategoryFilter.systemImage,
+                    isOpen: openMenu == .emojiCategory,
+                    help: "Filter by category  ⌘P",
+                    action: toggleEmojiCategory)
             }
             if !isCollapsed, vm.mode == .ai {
                 headerGutter(width: metrics.spacing.md)
@@ -868,6 +914,15 @@ struct RootPaletteView: View {
         open(.fileSearchFilter, highlighting: active)
     }
 
+    private func toggleEmojiCategory() {
+        if openMenu == .emojiCategory {
+            closeMenus()
+            return
+        }
+        let active = EmojiCategoryFilter.allCases.firstIndex(of: vm.emojiCategoryFilter) ?? 0
+        open(.emojiCategory, highlighting: active)
+    }
+
     /// Opens on the choice the dropdown holds, exactly as the clipboard filter opens on its own.
     private func toggleExtensionSearchAccessory() {
         if openMenu == .extensionAccessory {
@@ -910,16 +965,16 @@ struct RootPaletteView: View {
                 coordinator: core.aiChatCoordinator, settings: core.aiSettings))
     }
 
-    private var headerMenuWidth: CGFloat {
-        switch openMenu {
-        case .aiModel, .aiReasoning, .argumentOptions: metrics.size.menuWidth
-        default: metrics.size.clipboardFilterMenuWidth
-        }
+    private func fittedHeaderMenu(_ popover: PopoverMenuContent) -> PaletteMenuContent {
+        PaletteMenuContent(
+            popover: popover, selection: $menuSelection,
+            width: popover.fittedWidth(in: metrics), onActivate: activateMenuItem)
     }
 
     /// Every open path lands here, so the highlight is always stated rather than left behind.
     private func open(_ menu: OpenMenu, highlighting row: Int) {
         menuSelection = row
+        vm.noteMenuPresentation()
         openMenu = menu
     }
 
@@ -947,12 +1002,23 @@ struct RootPaletteView: View {
         }
     }
 
+    /// An action can remove the last visible pin; never leave an invisible menu owning input.
+    private func refreshActionsMenu() {
+        guard openMenu == .actions else { return }
+        guard menuContent != nil else {
+            closeMenus()
+            return
+        }
+        syncMenuPanel(presenting: false)
+    }
+
     private var menuCorner: MenuPanelCorner? {
         switch openMenu {
         case .app: .bottomLeading
         case .actions: .bottomTrailing
         case .argumentOptions: .belowHeaderTrailing
-        case .clipboardFilter, .fileSearchFilter, .aiModel, .aiReasoning, .extensionAccessory:
+        case .clipboardFilter, .fileSearchFilter, .emojiCategory, .aiModel, .aiReasoning,
+            .extensionAccessory:
             .belowHeaderTrailing
         case nil: nil
         }
@@ -995,24 +1061,41 @@ struct RootPaletteView: View {
     }
 
     /// Claimed whole on the launcher, so a press at an end cannot fall through to the caret.
-    private func moveFavorite(_ delta: Int, modifiers: EventModifiers) -> KeyPress.Result? {
-        guard modifiers.contains(.command), modifiers.contains(.option), !isCollapsed,
-            let launcher = screen as? LauncherScreen
-        else { return nil }
-        if launcher.moveFavorite(delta, at: selection(in: launcher)), menuOpen { closeMenus() }
+    private func movePinnedOrFavorite(
+        _ delta: Int, modifiers: EventModifiers
+    ) -> KeyPress.Result? {
+        guard modifiers.contains(.command), modifiers.contains(.option), !isCollapsed else {
+            return nil
+        }
+        if let launcher = screen as? LauncherScreen {
+            if launcher.moveFavorite(delta, at: selection(in: launcher)), menuOpen { closeMenus() }
+            return .handled
+        }
+        guard let emoji = screen as? EmojiScreen else { return nil }
+        let shortcut: PaletteShortcut = delta < 0 ? .movePinnedUp : .movePinnedDown
+        _ = emoji.perform(shortcut, at: selection(in: emoji))
         return .handled
     }
 
     /// Move the open menu's highlight, clamped at the ends (no wrap — consistent with `move`).
     private func moveMenu(_ delta: Int) {
         guard let content = menuContent, content.rowCount > 0 else { return }
-        menuSelection = min(max(menuSelection + delta, 0), content.rowCount - 1)
+        var candidate = menuSelection
+        while true {
+            let next = min(max(candidate + delta, 0), content.rowCount - 1)
+            guard next != candidate else { return }
+            candidate = next
+            if content.isEnabled(candidate), !content.isLoading(candidate) {
+                menuSelection = candidate
+                return
+            }
+        }
     }
 
     /// The one activation path for a menu row: run its action, then close.
     private func activateMenuItem(_ index: Int) {
         guard let content = menuContent, (0..<content.rowCount).contains(index) else { return }
-        guard !content.isLoading(index) else { return }
+        guard content.isEnabled(index), !content.isLoading(index) else { return }
         content.activate(index)
         closeMenus()
         // A mouse click on a row takes the caret with it; menus close back into the field.
@@ -1144,6 +1227,7 @@ private enum OpenMenu {
     case app
     case clipboardFilter
     case fileSearchFilter
+    case emojiCategory
     case aiModel
     case aiReasoning
 }

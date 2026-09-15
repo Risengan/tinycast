@@ -7,6 +7,12 @@ struct PaletteFrame: Equatable {
     let selection: Int
 }
 
+enum EmojiGridSizeCommand: Equatable {
+    case actualSize
+    case zoomIn
+    case zoomOut
+}
+
 /// Palette state shared between the panel's SwiftUI tree and the coordinator.
 @MainActor
 @Observable
@@ -22,6 +28,10 @@ final class PaletteState {
     var clipboardFilter: ClipboardFilter = .all
     /// The file search screen's type filter, reset on each summon like the clipboard's.
     var fileSearchFilter: FileSearchFilter = .all
+    /// The emoji picker's visible category, reset with the rest of a freshly opened screen.
+    var emojiCategoryFilter: EmojiCategoryFilter = .all
+    /// Nil means the configured default; zoom only overrides it for this picker session.
+    var emojiGridColumnsOverride: EmojiGridColumns?
     /// Whether file search draws its Quick Look overlay; it follows whatever row is selected.
     var fileSearchQuickLook = false
     /// Ordering out leaves the SwiftUI tree mounted, so a media preview needs this to stop playing.
@@ -38,6 +48,10 @@ final class PaletteState {
     private(set) var favoriteSlotToken = UUID()
     /// The last slot index from `noteFavoriteSlot`, consumed by the SwiftUI layer.
     private(set) var favoriteSlotIndex: Int?
+    /// Bumped when AppKit intercepts an emoji size chord before the field editor can eat it.
+    private(set) var emojiSizeCommandToken = UUID()
+    /// The last intercepted size chord, consumed through the current palette screen.
+    private(set) var emojiSizeCommand: EmojiGridSizeCommand?
     /// Set by the compact bar's overflow to expand without a query; cleared by `prepare`.
     var forceExpanded = false
     /// The paste target, mirrored on every show; `prepare` resets the screen, not this.
@@ -68,6 +82,8 @@ final class PaletteState {
     @ObservationIgnored var menuOpen = false { didSet { onMenuOpenChanged?(menuOpen) } }
     /// Fired when `menuOpen` flips, so the panel can hide the caret without a focus swap.
     @ObservationIgnored var onMenuOpenChanged: ((Bool) -> Void)?
+    /// A fresh presentation resets a long popover to the row it opens with.
+    private(set) var menuPresentationToken = UUID()
 
     func noteVisible(_ visible: Bool) {
         isVisible = visible
@@ -135,6 +151,8 @@ final class PaletteState {
         pendingArgumentEntryID = nil
         clipboardFilter = .all
         fileSearchFilter = .all
+        emojiCategoryFilter = .all
+        emojiGridColumnsOverride = nil
         fileSearchQuickLook = false
         forceExpanded = false
         dropHoverHighlight()
@@ -154,9 +172,18 @@ final class PaletteState {
         pinChordToken = UUID()
     }
 
+    func noteMenuPresentation() {
+        menuPresentationToken = UUID()
+    }
+
     func noteFavoriteSlot(_ index: Int) {
         favoriteSlotIndex = index
         favoriteSlotToken = UUID()
+    }
+
+    func noteEmojiSizeCommand(_ command: EmojiGridSizeCommand) {
+        emojiSizeCommand = command
+        emojiSizeCommandToken = UUID()
     }
 
     func noteCommandHeld(_ held: Bool) {

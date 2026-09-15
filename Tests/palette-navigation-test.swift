@@ -35,6 +35,9 @@ struct PaletteNavigationTests {
             "a pushed screen opens as fresh as a prepared one")
         expect(vm.canGoBack, "the screen it was pushed over is still there to return to")
 
+        vm.emojiCategoryFilter = .pinned
+        vm.emojiGridColumnsOverride = .six
+
         expect(vm.pop(), "a pushed screen has a step back")
         expect(
             vm.mode == .launcher && vm.query == "clipboard" && vm.selection == 3,
@@ -44,6 +47,14 @@ struct PaletteNavigationTests {
         expect(
             vm.mode == .launcher && vm.query == "clipboard",
             "a refused back step leaves the screen untouched")
+
+        let freshEmoji = searchingLauncher()
+        freshEmoji.emojiCategoryFilter = .category(.flags)
+        freshEmoji.emojiGridColumnsOverride = .ten
+        freshEmoji.prepare(mode: .emoji)
+        expect(
+            freshEmoji.emojiCategoryFilter == .all && freshEmoji.emojiGridColumnsOverride == nil,
+            "a fresh emoji screen restores all categories and the configured grid default")
 
         // A list snapped to the top would throw away the very selection being restored.
         let tokens = searchingLauncher()

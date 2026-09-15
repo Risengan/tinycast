@@ -65,13 +65,19 @@ extension View {
 /// The chevron a control that opens a popover carries, pointing the way it will open.
 struct ExtensionDisclosureChevron: View {
     @Environment(\.metrics) private var metrics
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let open: Bool
     var flipped = false
 
     var body: some View {
-        // Closed it always points down; open, it points back at the list it dropped.
-        Image(systemName: pointsUp ? "chevron.up" : "chevron.down")
+        // One glyph rotates towards the list, avoiding a symbol swap when the popover opens.
+        Image(systemName: "chevron.down")
             .font(metrics.typography.disclosure)
+            .rotationEffect(.degrees(pointsUp ? 180 : 0))
+            .animation(
+                reduceMotion ? nil : Theme.MenuMotion.chevronAnimation,
+                value: pointsUp
+            )
             .foregroundStyle(Theme.Colors.textSecondary)
     }
 

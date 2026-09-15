@@ -18,7 +18,7 @@ final class PaletteWindowController: NSObject, NSWindowDelegate {
     private var drag: DragSession?
     private let dropGuides = PaletteDropGuideController()
     /// ⌘V: `Edit ▸ Paste` claims it before `sendEvent` whenever the board also carries text.
-    private var pasteMonitor: Any?
+    private var keyMonitor: Any?
     /// ⌘⎋: the window server claims it, so no keystroke is left for the responder chain to see.
     private lazy var commandEscapeTap = CommandEscapeTap { [weak self] in
         guard let self, self.panel?.isKeyWindow == true else { return false }
@@ -92,7 +92,7 @@ final class PaletteWindowController: NSObject, NSWindowDelegate {
 
     // Isolated so teardown may touch the main-actor monitor; the block is already weak.
     isolated deinit {
-        if let pasteMonitor { NSEvent.removeMonitor(pasteMonitor) }
+        if let keyMonitor { NSEvent.removeMonitor(keyMonitor) }
     }
 
     /// The character a bare-⌘ chord names, through the ASCII layout so an IME cannot move it.
@@ -104,13 +104,40 @@ final class PaletteWindowController: NSObject, NSWindowDelegate {
             ?? event.charactersIgnoringModifiers?.lowercased()
     }
 
-    /// A local monitor sees the key before menu dispatch; returning nil swallows it.
-    private func installPasteMonitor() {
-        pasteMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) {
-            [weak self] event in
-            guard let self, self.panel?.isKeyWindow == true,
-                Self.commandCharacter(from: event) == "v"
-            else { return event }
+    /// Emoji sizing accepts shifted `=` as `+`; Option and Control keep their own chords.
+    private static func emojiSizeCommand(from event: NSEvent) -> EmojiGridSizeCommand? {
+        guard !event.isARepeat, event.modifierFlags.contains(.command),
+            event.modifierFlags.isDisjoint(with: [.option, .control])
+        else { return nil }
+        let characters = [
+            event.characters?.lowercased(),
+            event.charactersIgnoringModifiers?.lowercased(),
+            ASCIIKeyboardLayout.character(for: event)?.lowercased()
+        ]
+        if characters.contains("0") { return .actualSize }
+        if characters.contains("+") || characters.contains("=") { return .zoomIn }
+        // French layouts produce + by shifting the same physical key whose base character is -.
+        if event.modifierFlags.contains(.shift), characters.contains("-") { return .zoomIn }
+        if characters.contains("-") || characters.contains("−") { return .zoomOut }
+        switch Int(event.keyCode) {
+        case kVK_ANSI_0, kVK_ANSI_Keypad0: return .actualSize
+        case kVK_ANSI_Equal, kVK_ANSI_KeypadPlus: return .zoomIn
+        case kVK_ANSI_Minus, kVK_ANSI_KeypadMinus: return .zoomOut
+        default: return nil
+        }
+    }
+
+    /// A local monitor sees the key before menu dispatch or the field editor can claim it.
+    private func installKeyMonitor() {
+        keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+            guard let self, self.panel?.isKeyWindow == true else { return event }
+            if self.core.palette.mode == .emoji,
+                let command = Self.emojiSizeCommand(from: event)
+            {
+                self.core.palette.noteEmojiSizeCommand(command)
+                return nil
+            }
+            guard Self.commandCharacter(from: event) == "v" else { return event }
             return self.attachPastedFile() ? nil : event
         }
     }
@@ -326,7 +353,7 @@ final class PaletteWindowController: NSObject, NSWindowDelegate {
             core.palette.prepare(mode: .launcher)
             return true
         }
-        installPasteMonitor()
+        installKeyMonitor()
         // Handled at the panel: a focused preview answers Escape before the palette's own handler.
         panel.onEscape = { [weak self] in
             guard let self, core.palette.fileSearchQuickLook else { return false }

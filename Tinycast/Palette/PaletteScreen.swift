@@ -40,6 +40,7 @@ typealias MenuPanelClipPath =
 @MainActor struct PaletteMenuContent {
     let rowCount: Int
     let isLoading: (Int) -> Bool
+    let isEnabled: (Int) -> Bool
     let clipPath: MenuPanelClipPath
     let motion: MenuPanelMotion
     /// Built on demand: `moveMenu` resolves the open menu on every arrow key.
@@ -51,6 +52,7 @@ typealias MenuPanelClipPath =
         rowCount: Int, view: @escaping (MenuPanelCorner) -> AnyView,
         activate: @escaping (Int) -> Void,
         isLoading: @escaping (Int) -> Bool = { _ in false },
+        isEnabled: @escaping (Int) -> Bool = { _ in true },
         clipPath: @escaping MenuPanelClipPath,
         motion: MenuPanelMotion
     ) {
@@ -58,6 +60,7 @@ typealias MenuPanelClipPath =
         self.view = view
         self.activate = activate
         self.isLoading = isLoading
+        self.isEnabled = isEnabled
         self.clipPath = clipPath
         self.motion = motion
     }
@@ -77,6 +80,7 @@ typealias MenuPanelClipPath =
             },
             activate: { popover.items[$0].action() },
             isLoading: { popover.items[$0].isLoading },
+            isEnabled: { popover.items[$0].isEnabled },
             clipPath: { bounds, metrics, corner in
                 PopoverMenu.SurfaceShape(
                     attachment: corner.popoverAttachment, radius: metrics.radius.menuPanel,

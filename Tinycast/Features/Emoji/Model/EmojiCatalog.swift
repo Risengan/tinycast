@@ -35,6 +35,85 @@ enum EmojiCategory: String, CaseIterable, Sendable {
         case .keysAndTechnical: return "Keys & Technical"
         }
     }
+
+    var systemImage: String {
+        switch self {
+        // The target SF Symbols runtime swaps these two faces; this name renders the outline glyph.
+        case .smileysAndPeople: "face.smiling.inverse"
+        case .animalsAndNature: "pawprint"
+        case .foodAndDrink: "pizza.slice"
+        case .activity: "gamecontroller"
+        case .travelAndPlaces: "paperplane"
+        case .objects: "lightbulb"
+        case .symbols: "number.sign"
+        case .flags: "flag"
+        case .arrows: "arrow.up.right"
+        case .currency: "dollarsign"
+        case .math: "squareroot"
+        case .shapesAndPunctuation: "triangle"
+        case .cjk: "globe"
+        case .keysAndTechnical: "command"
+        }
+    }
+
+    /// Names the selected character in Actions; Unicode's latter categories are symbol collections.
+    var itemTitle: String {
+        switch self {
+        case .symbols, .arrows, .currency, .math, .shapesAndPunctuation, .cjk,
+            .keysAndTechnical:
+            "Symbol"
+        default:
+            "Emoji"
+        }
+    }
+}
+
+/// Which section the picker shows; `.all` keeps the catalog's complete ordered overview.
+enum EmojiCategoryFilter: Hashable, Sendable {
+    case all
+    case pinned
+    case frequentlyUsed
+    case category(EmojiCategory)
+
+    static let allCases: [Self] =
+        [.all, .pinned, .frequentlyUsed] + EmojiCategory.allCases.map(Self.category)
+
+    var title: String {
+        switch self {
+        case .all: "All Categories"
+        case .pinned: "Pinned"
+        case .frequentlyUsed: "Frequently Used"
+        case .category(let category): category.title
+        }
+    }
+
+    var systemImage: String {
+        switch self {
+        case .all: "square.grid.3x3.square"
+        case .pinned: "pin"
+        case .frequentlyUsed: "clock"
+        case .category(let category): category.systemImage
+        }
+    }
+
+}
+
+/// User-selectable grid density. Zoom changes this for the current picker session only.
+enum EmojiGridColumns: Int, CaseIterable, Identifiable, Sendable {
+    case six = 6
+    case seven = 7
+    case eight = 8
+    case nine = 9
+    case ten = 10
+
+    static let `default`: Self = .eight
+
+    var id: Int { rawValue }
+    var title: String { "\(rawValue) columns" }
+
+    func offset(by delta: Int) -> Self? {
+        Self(rawValue: rawValue + delta)
+    }
 }
 
 /// Fitzpatrick skin tone preference; `modifier` is the scalar appended to tone-capable emoji.

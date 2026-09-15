@@ -488,6 +488,9 @@ handled in `PalettePanel.sendEvent` before `super` hands the event to the respon
   `onKeyPress(keys: ["."])` never fires. Pin (⌘.) therefore arrives through `onCommandShortcut`,
   which bumps `PaletteState.pinChordToken`; `RootPaletteView` observes that and resolves the row
   through the current screen, so **which** row gets pinned still comes from `screen.rows` alone.
+- **Emoji size chords.** `⌘0`, `⌘+` and `⌘-` can be claimed by the field editor or a main-menu
+  selector. The local key monitor publishes them through `emojiSizeCommandToken` before dispatch,
+  then the emoji screen applies the same bounded column change as its Actions rows.
 - **Chords the window server keeps for itself.** ⌘⎋ is the one that bites: macOS binds it before any
   app sees it, so unlike ⌘. there is no keystroke left for `sendEvent` to intercept — a handler in
   the responder chain compiles, runs never, and looks like a palette bug. `CommandEscapeTap` takes it

@@ -56,6 +56,9 @@ struct SettingsBackupTest {
         check(
             "clipboard enablement rides the settings backup",
             mirrored["clipboardEnabled"] == .clipboardEnabled)
+        check(
+            "emoji grid density rides the settings backup",
+            mirrored["emojiGridColumns"] == .emojiGridColumns)
 
         // Named one by one: a backup now carries content, so it is far likelier to be sent on.
         for key: AppSettingsKey in [

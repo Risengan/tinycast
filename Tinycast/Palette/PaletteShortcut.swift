@@ -28,6 +28,13 @@ enum PaletteShortcut: Equatable {
     case restart
     /// ⌘., which AppKit binds to `cancelOperation:`, so it arrives as a token instead of a key.
     case pin
+    /// ⌥⌘↑/↓, used by ordered pinned sections without stealing plain grid navigation.
+    case movePinnedUp
+    case movePinnedDown
+    /// ⌘0 / ⌘+ / ⌘−, scoped by the receiving screen.
+    case actualSize
+    case zoomIn
+    case zoomOut
     /// ⌘1…⌘0, matched by key code in the panel and handed over as a slot.
     case favoriteSlot(Int)
 
@@ -49,6 +56,12 @@ enum PaletteShortcut: Equatable {
         if command, shift, matches("h") { return .hideFromSearch }
         if control, shift, matches("q") { return .quit }
         if command, matches("r") { return .restart }
+        if command, !option, !control {
+            if matches("0") { return .actualSize }
+            // On layouts where + is shifted =, the ASCII command table reports the base key.
+            if matches("+") || matches("=") { return .zoomIn }
+            if matches("-") { return .zoomOut }
+        }
         return nil
     }
 
@@ -60,6 +73,8 @@ enum PaletteShortcut: Equatable {
             true
         case .commandDelete, .delete, .deleteAll, .pin, .favoriteSlot:
             false
+        case .movePinnedUp, .movePinnedDown, .actualSize, .zoomIn, .zoomOut:
+            true
         }
     }
 
@@ -68,7 +83,8 @@ enum PaletteShortcut: Equatable {
         case .delete, .deleteAll, .copyFile, .copyName, .copyPath, .quickLook, .toggleFavorite,
             .hideFromSearch:
             true
-        case .commandDelete, .pasteFile, .quit, .restart, .pin, .favoriteSlot:
+        case .commandDelete, .pasteFile, .quit, .restart, .pin, .movePinnedUp, .movePinnedDown,
+            .actualSize, .zoomIn, .zoomOut, .favoriteSlot:
             false
         }
     }
