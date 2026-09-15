@@ -1,42 +1,5 @@
 import SwiftUI
 
-/// AppKit resolves the named base symbol directly, without SwiftUI inheriting a button variant.
-struct MenuSymbolImage: View {
-    let name: String
-    let size: CGFloat
-
-    var body: some View {
-        if let image = MenuSymbolCache.image(named: name, size: size) {
-            Image(nsImage: image)
-                .renderingMode(.template)
-                .frame(width: size, height: size)
-        }
-    }
-}
-
-/// Menu selection rebuilds the hosted tree; keep resolved monochrome symbols out of that hot path.
-@MainActor
-private enum MenuSymbolCache {
-    private static let images: NSCache<NSString, NSImage> = {
-        let cache = NSCache<NSString, NSImage>()
-        cache.countLimit = 128
-        return cache
-    }()
-
-    static func image(named name: String, size: CGFloat) -> NSImage? {
-        let key = "\(name)|\(size)" as NSString
-        if let image = images.object(forKey: key) { return image }
-        let configuration = NSImage.SymbolConfiguration(
-            pointSize: size, weight: Theme.Typography.menuSymbolNSWeight)
-        guard
-            let image = NSImage(systemSymbolName: name, accessibilityDescription: nil)?
-                .withSymbolConfiguration(configuration)
-        else { return nil }
-        images.setObject(image, forKey: key)
-        return image
-    }
-}
-
 /// A bar control's hover chrome; footer pills and header pop-ups share `barControl` as one family.
 enum BarButtonChrome {
     case capsule
@@ -110,8 +73,9 @@ struct HeaderMenuButton: View {
                 case .blank:
                     EmptyView()
                 case .symbol(let name):
-                    MenuSymbolImage(
-                        name: name, size: metrics.scaled(Theme.Typography.menuSymbolSize))
+                    Image(systemName: name)
+                        .font(metrics.typography.bar)
+                        .symbolRenderingMode(.hierarchical)
                 case .asset(let name):
                     Image(name)
                         .resizable()
@@ -124,13 +88,11 @@ struct HeaderMenuButton: View {
                     .font(metrics.typography.bar)
                     .lineLimit(1)
                     .truncationMode(.middle)
-                // One fixed glyph rotates so opening the menu cannot change its layout.
+                // One glyph rotates rather than swapping, so opening the menu cannot shift the layout.
                 Image(systemName: "chevron.down")
                     .font(metrics.typography.disclosure)
                     .rotationEffect(.degrees(isOpen ? 180 : 0))
-                    .animation(
-                        reduceMotion ? nil : Theme.MenuMotion.chevronAnimation,
-                        value: isOpen)
+                    .animation(reduceMotion ? nil : Theme.MenuMotion.chevronAnimation, value: isOpen)
             }
             .foregroundStyle(Theme.Colors.textSecondary)
         }

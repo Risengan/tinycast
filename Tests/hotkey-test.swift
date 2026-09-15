@@ -107,9 +107,6 @@ struct DoubleTapDetectorTests {
     static func commandActions() {
         let unbindable = Set(CommandID.allCases.filter { $0.hotKeyAction == nil })
         expect(
-            CommandID.searchEmoji.sfSymbol == "face.smiling.inverse",
-            "emoji search uses the runtime's outline face")
-        expect(
             unbindable == [.openInBrowser, .runShellCommand, .quit],
             "only the query-driven pair and Quit are unbindable — got \(unbindable.map(\.name))")
         expect(

@@ -70,7 +70,9 @@ struct InterfaceMetrics: Equatable, Sendable {
         var checkbox: CGFloat { scaledPoints(Theme.Size.checkbox, scale) }
 
         var menuWidth: CGFloat { scaledPoints(Theme.Size.menuWidth, scale) }
-        var menuMinimumWidth: CGFloat { scaledPoints(Theme.Size.menuMinimumWidth, scale) }
+        var clipboardFilterMenuWidth: CGFloat { scaledPoints(Theme.Size.clipboardFilterMenuWidth, scale) }
+        var fileSearchFilterMenuWidth: CGFloat { scaledPoints(Theme.Size.fileSearchFilterMenuWidth, scale) }
+        var emojiCategoryMenuWidth: CGFloat { scaledPoints(Theme.Size.emojiCategoryMenuWidth, scale) }
         var menuIcon: CGFloat { scaledPoints(Theme.Size.menuIcon, scale) }
         var menuBrandIcon: CGFloat { scaledPoints(Theme.Size.menuBrandIcon, scale) }
         var barBrandIcon: CGFloat { scaledPoints(Theme.Size.barBrandIcon, scale) }
@@ -158,7 +160,6 @@ struct InterfaceMetrics: Equatable, Sendable {
         @MainActor var chipNSFont: NSFont { scale == 1 ? Theme.Typography.chipNSFont : nsFont(.callout) }
         var disclosure: Font { font(Theme.Typography.disclosure, .caption1, .semibold) }
         var menuRow: Font { font(Theme.Typography.menuRow, .body) }
-        @MainActor var menuRowNSFont: NSFont { nsFont(.body) }
         var menuShortcut: Font { font(Theme.Typography.menuShortcut, .callout) }
         var menuIcon: Font { font(Theme.Typography.menuIcon, .body) }
 

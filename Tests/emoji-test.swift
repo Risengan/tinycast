@@ -39,15 +39,6 @@ struct EmojiTests {
             EmojiCategory.allCases.allSatisfy { !$0.systemImage.isEmpty },
             "every category has a menu symbol")
         expect(
-            EmojiCategory.smileysAndPeople.systemImage == "face.smiling.inverse",
-            "Smileys & People uses the runtime's outline face")
-        expect(
-            EmojiCategory.shapesAndPunctuation.systemImage == "triangle",
-            "Shapes & Punctuation uses the triangle symbol")
-        expect(
-            EmojiCategory.cjk.systemImage == "globe",
-            "CJK Symbols uses a globe instead of a Latin character")
-        expect(
             EmojiCategoryFilter.allCases.count == EmojiCategory.allCases.count + 3,
             "all, pinned and frequent precede every catalog category")
         expect(EmojiCategoryFilter.allCases.first == .all, "All Categories is the default row")
@@ -59,10 +50,16 @@ struct EmojiTests {
             EmojiGridColumns.allCases.map(\.rawValue) == [6, 7, 8, 9, 10],
             "grid densities cover six through ten columns")
         expect(EmojiGridColumns.default == .eight, "the default grid has eight columns")
-        expect(EmojiGridColumns.six.offset(by: -1) == nil, "zoom-in stops at six columns")
-        expect(EmojiGridColumns.ten.offset(by: 1) == nil, "zoom-out stops at ten columns")
-        expect(EmojiGridColumns.eight.offset(by: -1) == .seven, "zoom-in removes one column")
-        expect(EmojiGridColumns.eight.offset(by: 1) == .nine, "zoom-out adds one column")
+        expect(EmojiGridColumns.six.applying(.zoomIn, default: .eight) == nil, "zoom-in stops at six")
+        expect(EmojiGridColumns.ten.applying(.zoomOut, default: .eight) == nil, "zoom-out stops at ten")
+        expect(EmojiGridColumns.eight.applying(.zoomIn, default: .eight) == .seven, "zoom-in drops one")
+        expect(EmojiGridColumns.eight.applying(.zoomOut, default: .eight) == .nine, "zoom-out adds one")
+        expect(
+            EmojiGridColumns.six.applying(.actualSize, default: .nine) == .nine,
+            "actual size returns to the configured default")
+        expect(
+            EmojiGridColumns.nine.applying(.actualSize, default: .nine) == nil,
+            "actual size at the default changes nothing")
 
         // Skin tone application
         expect(EmojiCatalog.applyTone(.dark, to: "👋") == "👋🏿", "modifier appended")

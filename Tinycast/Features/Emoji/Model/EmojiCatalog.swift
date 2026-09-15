@@ -38,8 +38,7 @@ enum EmojiCategory: String, CaseIterable, Sendable {
 
     var systemImage: String {
         switch self {
-        // The target SF Symbols runtime swaps these two faces; this name renders the outline glyph.
-        case .smileysAndPeople: "face.smiling.inverse"
+        case .smileysAndPeople: "face.smiling"
         case .animalsAndNature: "pawprint"
         case .foodAndDrink: "pizza.slice"
         case .activity: "gamecontroller"
@@ -95,7 +94,13 @@ enum EmojiCategoryFilter: Hashable, Sendable {
         case .category(let category): category.systemImage
         }
     }
+}
 
+/// ⌘0 / ⌘+ / ⌘-: zooming in shows fewer, larger cells.
+enum EmojiGridZoom: Sendable {
+    case actualSize
+    case zoomIn
+    case zoomOut
 }
 
 /// User-selectable grid density. Zoom changes this for the current picker session only.
@@ -111,8 +116,15 @@ enum EmojiGridColumns: Int, CaseIterable, Identifiable, Sendable {
     var id: Int { rawValue }
     var title: String { "\(rawValue) columns" }
 
-    func offset(by delta: Int) -> Self? {
-        Self(rawValue: rawValue + delta)
+    /// Nil when the zoom would change nothing: already at the default, or at six or ten columns.
+    func applying(_ zoom: EmojiGridZoom, default defaultColumns: Self) -> Self? {
+        let next: Self? =
+            switch zoom {
+            case .actualSize: defaultColumns
+            case .zoomIn: Self(rawValue: rawValue - 1)
+            case .zoomOut: Self(rawValue: rawValue + 1)
+            }
+        return next == self ? nil : next
     }
 }
 

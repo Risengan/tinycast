@@ -72,7 +72,7 @@ struct RootPaletteView: View {
             return EmojiScreen(
                 index: emojiIndex, frequent: frequentEmoji, pinned: core.pinnedEmoji, core: core, vm: vm,
                 tone: settings.emojiSkinTone, defaultColumns: settings.emojiGridColumns,
-                openActions: openActions, scrollToFollow: { scroll = ScrollIntent(kind: .follow) })
+                openActions: openActions)
         case .fileSearch:
             return FileSearchScreen(
                 session: fileSearch, core: core, vm: vm, openActions: openActions)
@@ -204,22 +204,25 @@ struct RootPaletteView: View {
             return PaletteMenuContent(
                 popover: appMenuContent, selection: $menuSelection, onActivate: activateMenuItem)
         case .clipboardFilter:
-            return fittedHeaderMenu(clipboardFilterContent)
+            return headerMenu(clipboardFilterContent, width: metrics.size.clipboardFilterMenuWidth)
         case .fileSearchFilter:
-            return fittedHeaderMenu(fileSearchFilterContent)
+            return headerMenu(fileSearchFilterContent, width: metrics.size.fileSearchFilterMenuWidth)
         case .emojiCategory:
-            return fittedHeaderMenu(emojiCategoryContent)
+            return headerMenu(emojiCategoryContent, width: metrics.size.emojiCategoryMenuWidth)
         case .aiModel:
-            return fittedHeaderMenu(AIModelMenu.models(coordinator: core.aiChatCoordinator))
+            return headerMenu(
+                AIModelMenu.models(coordinator: core.aiChatCoordinator),
+                width: metrics.size.menuWidth)
         case .aiReasoning:
-            return fittedHeaderMenu(
+            return headerMenu(
                 AIModelMenu.reasoning(
-                    coordinator: core.aiChatCoordinator, settings: core.aiSettings))
+                    coordinator: core.aiChatCoordinator, settings: core.aiSettings),
+                width: metrics.size.menuWidth)
         case .argumentOptions:
             guard let field = argumentOptionsField,
                 let popover = headerAccessory?.optionsMenu(field)
             else { return nil }
-            return fittedHeaderMenu(popover)
+            return headerMenu(popover, width: metrics.size.menuWidth)
         case .extensionAccessory:
             return extensionCommandScreen?.searchAccessoryMenu(
                 menuSelection: $menuSelection, onActivate: activateMenuItem)
@@ -292,27 +295,21 @@ struct RootPaletteView: View {
                 vm.selection = 0
                 scroll = ScrollIntent(kind: .top)
             }
-            // ⌘. can alter the open Actions menu, so refresh its rows without reopening it.
-            .onChange(of: core.pinnedEmoji.revision) {
-                refreshActionsMenu()
+            .onChange(of: core.pinnedEmoji.revision) { emojiGridChanged() }
+            .onChange(of: vm.emojiGridColumnsOverride) { emojiGridChanged() }
+            .onChange(of: settings.emojiGridColumns) { emojiGridChanged() }
+            // ⌘0 / ⌘+ / ⌘- arrive as a token, like ⌘. does. See `PaletteState.emojiGridZoomToken`.
+            .onChange(of: vm.emojiGridZoomToken) {
+                guard let zoom = vm.emojiGridZoom else { return }
+                (screen as? EmojiScreen)?.zoom(zoom)
             }
-            .onChange(of: vm.emojiGridColumnsOverride) {
-                scroll = ScrollIntent(kind: .follow)
-                refreshActionsMenu()
-            }
-            .onChange(of: settings.emojiGridColumns) {
-                guard vm.mode == .emoji, vm.emojiGridColumnsOverride == nil else { return }
-                scroll = ScrollIntent(kind: .follow)
-                refreshActionsMenu()
-            }
-            .onChange(of: vm.emojiSizeCommandToken) {
-                guard let command = vm.emojiSizeCommand else { return }
-                switch command {
-                case .actualSize: performShortcut(.actualSize)
-                case .zoomIn: performShortcut(.zoomIn)
-                case .zoomOut: performShortcut(.zoomOut)
-                }
-            }
+    }
+
+    /// Pins and density move cells under the selection, and can change an open Actions menu's rows.
+    private func emojiGridChanged() {
+        guard vm.mode == .emoji else { return }
+        scroll = ScrollIntent(kind: .follow)
+        refreshActionsMenu()
     }
 
     /// Split from `body` for the same reason `keyHandlers` is: one chain cannot carry them all.
@@ -971,10 +968,10 @@ struct RootPaletteView: View {
                 coordinator: core.aiChatCoordinator, settings: core.aiSettings))
     }
 
-    private func fittedHeaderMenu(_ popover: PopoverMenuContent) -> PaletteMenuContent {
+    /// Every header menu states its own width, so resizing one never moves another.
+    private func headerMenu(_ popover: PopoverMenuContent, width: CGFloat) -> PaletteMenuContent {
         PaletteMenuContent(
-            popover: popover, selection: $menuSelection,
-            width: popover.fittedWidth(in: metrics), onActivate: activateMenuItem)
+            popover: popover, selection: $menuSelection, width: width, onActivate: activateMenuItem)
     }
 
     /// Every open path lands here, so the highlight is always stated rather than left behind.
@@ -1066,7 +1063,7 @@ struct RootPaletteView: View {
         return true
     }
 
-    /// Claimed whole on the launcher, so a press at an end cannot fall through to the caret.
+    /// Claimed whole on the launcher and emoji grid, so a press at an end cannot reach the caret.
     private func movePinnedOrFavorite(
         _ delta: Int, modifiers: EventModifiers
     ) -> KeyPress.Result? {
@@ -1078,30 +1075,27 @@ struct RootPaletteView: View {
             return .handled
         }
         guard let emoji = screen as? EmojiScreen else { return nil }
-        let shortcut: PaletteShortcut = delta < 0 ? .movePinnedUp : .movePinnedDown
-        _ = emoji.perform(shortcut, at: selection(in: emoji))
+        emoji.movePin(delta, at: selection(in: emoji))
         return .handled
     }
 
-    /// Move the open menu's highlight, clamped at the ends (no wrap — consistent with `move`).
+    /// Move the open menu's highlight past rows it cannot land on, stopping at the ends (no wrap).
     private func moveMenu(_ delta: Int) {
-        guard let content = menuContent, content.rowCount > 0 else { return }
-        var candidate = menuSelection
-        while true {
-            let next = min(max(candidate + delta, 0), content.rowCount - 1)
-            guard next != candidate else { return }
-            candidate = next
-            if content.isEnabled(candidate), !content.isLoading(candidate) {
-                menuSelection = candidate
+        guard let content = menuContent else { return }
+        var row = menuSelection + delta
+        while (0..<content.rowCount).contains(row) {
+            if content.isSelectable(row) {
+                menuSelection = row
                 return
             }
+            row += delta
         }
     }
 
     /// The one activation path for a menu row: run its action, then close.
     private func activateMenuItem(_ index: Int) {
         guard let content = menuContent, (0..<content.rowCount).contains(index) else { return }
-        guard content.isEnabled(index), !content.isLoading(index) else { return }
+        guard content.isSelectable(index) else { return }
         content.activate(index)
         closeMenus()
         // A mouse click on a row takes the caret with it; menus close back into the field.

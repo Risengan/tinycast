@@ -129,8 +129,11 @@ enum Theme {
         static let emojiGridInset: CGFloat = 16
         static let emojiCell: CGFloat = 56
         static let menuWidth: CGFloat = 276
-        /// Fitted header menus never squeeze their row chrome below a comfortable compact width.
-        static let menuMinimumWidth: CGFloat = 140
+        /// The clipboard type filter's menu; `menuWidth` is far too wide for six short rows.
+        static let clipboardFilterMenuWidth: CGFloat = 200
+        static let fileSearchFilterMenuWidth: CGFloat = 200
+        /// Fits "Shapes & Punctuation", the longest category title.
+        static let emojiCategoryMenuWidth: CGFloat = 220
         /// Stated, not padded: the cap below counts rows, so a capped menu would land mid-row.
         static let menuRowHeight: CGFloat = menuIcon + Spacing.md * 2
         static let menuRowSpacing: CGFloat = 1
@@ -307,7 +310,7 @@ enum Theme {
         static let menuShortcut = Font.callout
         static let menuIcon = Font.body
         static let menuSymbolSize: CGFloat = 14
-        static let menuSymbolNSWeight = NSFont.Weight.medium
+        static let menuSymbolWeight = Font.Weight.medium
         static let noteTitle = Font.headline
     }
 

@@ -7,12 +7,6 @@ struct PaletteFrame: Equatable {
     let selection: Int
 }
 
-enum EmojiGridSizeCommand: Equatable {
-    case actualSize
-    case zoomIn
-    case zoomOut
-}
-
 /// Palette state shared between the panel's SwiftUI tree and the coordinator.
 @MainActor
 @Observable
@@ -48,10 +42,10 @@ final class PaletteState {
     private(set) var favoriteSlotToken = UUID()
     /// The last slot index from `noteFavoriteSlot`, consumed by the SwiftUI layer.
     private(set) var favoriteSlotIndex: Int?
-    /// Bumped when AppKit intercepts an emoji size chord before the field editor can eat it.
-    private(set) var emojiSizeCommandToken = UUID()
-    /// The last intercepted size chord, consumed through the current palette screen.
-    private(set) var emojiSizeCommand: EmojiGridSizeCommand?
+    /// Bumped for ⌘0 / ⌘+ / ⌘-, which the panel claims before the field editor can.
+    private(set) var emojiGridZoomToken = UUID()
+    /// The last zoom from `noteEmojiGridZoom`, consumed by the SwiftUI layer.
+    private(set) var emojiGridZoom: EmojiGridZoom?
     /// Set by the compact bar's overflow to expand without a query; cleared by `prepare`.
     var forceExpanded = false
     /// The paste target, mirrored on every show; `prepare` resets the screen, not this.
@@ -181,9 +175,9 @@ final class PaletteState {
         favoriteSlotToken = UUID()
     }
 
-    func noteEmojiSizeCommand(_ command: EmojiGridSizeCommand) {
-        emojiSizeCommand = command
-        emojiSizeCommandToken = UUID()
+    func noteEmojiGridZoom(_ zoom: EmojiGridZoom) {
+        emojiGridZoom = zoom
+        emojiGridZoomToken = UUID()
     }
 
     func noteCommandHeld(_ held: Bool) {

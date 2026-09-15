@@ -10,10 +10,23 @@ struct EmojiScreen: PaletteScreen {
     let tone: EmojiSkinTone
     let defaultColumns: EmojiGridColumns
     let openActions: () -> Void
-    let scrollToFollow: () -> Void
 
     private var columns: EmojiGridColumns {
         vm.emojiGridColumnsOverride ?? defaultColumns
+    }
+
+    /// The pins the grid shows; a stored glyph the catalog lacks must not shift any position.
+    private var visiblePins: [String] {
+        pinned.glyphs.filter { index.entry(for: $0) != nil }
+    }
+
+    private var isBrowsing: Bool {
+        vm.query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    /// Pinned is the first section here, so a pin's position is also its flat selection index.
+    private var pinsLeadGrid: Bool {
+        isBrowsing && (vm.emojiCategoryFilter == .all || vm.emojiCategoryFilter == .pinned)
     }
 
     private var sections: [EmojiGridSection] {
@@ -34,14 +47,14 @@ struct EmojiScreen: PaletteScreen {
 
     func actions(at selection: Int) -> PopoverMenuContent? {
         guard let entry = entry(at: selection) else { return nil }
-        let pinnedIndex = pinned.index(of: entry.glyph)
+        let pins = visiblePins
         return EmojiActionsMenu.content(
             entry: entry, core: core, target: vm.pasteTarget,
-            pinnedIndex: pinnedIndex, pinnedCount: pinned.glyphs.count,
-            columns: columns, defaultColumns: defaultColumns,
-            togglePinned: { togglePinned(entry) },
-            movePinned: { movePinned(entry, by: $0) },
-            setColumns: setColumns)
+            pinPosition: pins.firstIndex(of: entry.glyph), pinCount: pins.count,
+            canZoom: { columns.applying($0, default: defaultColumns) != nil },
+            togglePin: { togglePin(entry) },
+            movePin: { movePin(entry, by: $0) },
+            zoom: zoom)
     }
 
     func activate(at selection: Int) {
@@ -63,33 +76,20 @@ struct EmojiScreen: PaletteScreen {
     }
 
     func perform(_ shortcut: PaletteShortcut, at selection: Int) -> Bool {
-        switch shortcut {
-        case .actualSize:
-            setColumns(defaultColumns)
-            return true
-        case .zoomIn:
-            if let value = columns.offset(by: -1) { setColumns(value) }
-            return true
-        case .zoomOut:
-            if let value = columns.offset(by: 1) { setColumns(value) }
-            return true
-        default:
-            break
-        }
-        guard let entry = entry(at: selection) else { return false }
-        switch shortcut {
-        case .pin:
-            togglePinned(entry)
-            return true
-        case .movePinnedUp:
-            _ = movePinned(entry, by: -1)
-            return true
-        case .movePinnedDown:
-            _ = movePinned(entry, by: 1)
-            return true
-        default:
-            return false
-        }
+        guard shortcut == .pin, let entry = entry(at: selection) else { return false }
+        togglePin(entry)
+        return true
+    }
+
+    /// ⌥⌘↑/↓ on the selected cell, when it is pinned.
+    func movePin(_ delta: Int, at selection: Int) {
+        guard let entry = entry(at: selection) else { return }
+        movePin(entry, by: delta)
+    }
+
+    func zoom(_ zoom: EmojiGridZoom) {
+        guard let next = columns.applying(zoom, default: defaultColumns) else { return }
+        vm.emojiGridColumnsOverride = next == defaultColumns ? nil : next
     }
 
     /// One visual row vertically, spilling into the neighbour by column; one cell horizontally.
@@ -135,62 +135,27 @@ struct EmojiScreen: PaletteScreen {
         }
     }
 
-    private func togglePinned(_ entry: EmojiEntry) {
-        let pinnedIndex = pinned.index(of: entry.glyph)
-        let selectedPinnedOccurrence = selectedPinnedOccurrence(of: entry, pinnedIndex: pinnedIndex)
+    private func togglePin(_ entry: EmojiEntry) {
+        let position = visiblePins.firstIndex(of: entry.glyph)
         pinned.toggle(entry.glyph)
-        guard let pinnedIndex else {
-            // All Categories gains one leading pin; keep the same non-pinned occurrence selected.
-            if vm.query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
-                vm.emojiCategoryFilter == .all
-            {
-                vm.selection += 1
-            }
-            return
+        if let position, pinsLeadGrid, vm.selection == position {
+            // The neighbour sliding into the slot takes the selection, not the catalog copy.
+            vm.selection = EmojiGridGeometry.selectionAfterRemovingPin(
+                at: position, remainingCount: visiblePins.count)
+        } else if isBrowsing, vm.emojiCategoryFilter == .all {
+            vm.selection = max(vm.selection + (position == nil ? 1 : -1), 0)
+        } else if vm.emojiCategoryFilter == .pinned {
+            vm.selection = min(vm.selection, max(rows.count - 1, 0))
         }
-        guard selectedPinnedOccurrence else {
-            // Removing a leading pin shifts the same catalog occurrence back one flat position.
-            if vm.query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
-                vm.emojiCategoryFilter == .all
-            {
-                vm.selection = max(vm.selection - 1, 0)
-                scrollToFollow()
-            } else if vm.emojiCategoryFilter == .pinned {
-                vm.selection = min(vm.selection, max(rows.count - 1, 0))
-                scrollToFollow()
-            }
-            return
-        }
-        vm.selection = EmojiGridGeometry.selectionAfterRemovingPin(
-            at: pinnedIndex, remainingCount: pinned.glyphs.count)
-        scrollToFollow()
     }
 
-    /// Pinned is the leading section in these two views; search results are never pin positions.
-    private func selectedPinnedOccurrence(of entry: EmojiEntry, pinnedIndex: Int?) -> Bool {
-        guard vm.query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
-            vm.emojiCategoryFilter == .all || vm.emojiCategoryFilter == .pinned,
-            let pinnedIndex, vm.selection == pinnedIndex
-        else { return false }
-        return pinned.glyphs[pinnedIndex] == entry.glyph
-    }
-
-    @discardableResult
-    private func movePinned(_ entry: EmojiEntry, by delta: Int) -> Bool {
-        guard pinned.move(entry.glyph, by: delta) else { return false }
-        follow(entry)
-        return true
-    }
-
-    private func follow(_ entry: EmojiEntry) {
-        let updated = rows
-        vm.selection = updated.firstIndex(of: entry) ?? min(vm.selection, max(updated.count - 1, 0))
-        scrollToFollow()
-    }
-
-    private func setColumns(_ value: EmojiGridColumns) {
-        vm.emojiGridColumnsOverride = value == defaultColumns ? nil : value
-        scrollToFollow()
+    private func movePin(_ entry: EmojiEntry, by delta: Int) {
+        let pins = visiblePins
+        guard let position = pins.firstIndex(of: entry.glyph),
+            pins.indices.contains(position + delta)
+        else { return }
+        pinned.swap(entry.glyph, with: pins[position + delta])
+        if pinsLeadGrid, vm.selection == position { vm.selection = position + delta }
     }
 }
 
@@ -198,10 +163,9 @@ struct EmojiScreen: PaletteScreen {
 @MainActor
 enum EmojiActionsMenu {
     static func content(
-        entry: EmojiEntry, core: AppCore, target: PasteTarget?, pinnedIndex: Int?,
-        pinnedCount: Int, columns: EmojiGridColumns, defaultColumns: EmojiGridColumns,
-        togglePinned: @escaping () -> Void, movePinned: @escaping (Int) -> Void,
-        setColumns: @escaping (EmojiGridColumns) -> Void
+        entry: EmojiEntry, core: AppCore, target: PasteTarget?, pinPosition: Int?, pinCount: Int,
+        canZoom: (EmojiGridZoom) -> Bool, togglePin: @escaping () -> Void,
+        movePin: @escaping (Int) -> Void, zoom: @escaping (EmojiGridZoom) -> Void
     )
         -> PopoverMenuContent
     {
@@ -223,53 +187,38 @@ enum EmojiActionsMenu {
                 icon: .paste(target, fallback: "macwindow"), shortcut: "⌥↵"
             ) {
                 core.emojiCoordinator.pasteEmojiKeepingWindowOpen(entry)
-            }
-        ]
-
-        items.append(
+            },
             PopoverMenuItem(
-                title: pinnedIndex == nil ? "Pin \(noun)" : "Unpin \(noun)",
-                systemImage: pinnedIndex == nil ? "pin" : "pin.slash",
-                startsSection: true, shortcut: "⌘.", action: togglePinned))
-        if let pinnedIndex {
+                title: pinPosition == nil ? "Pin \(noun)" : "Unpin \(noun)",
+                systemImage: pinPosition == nil ? "pin" : "pin.slash",
+                startsSection: true, shortcut: "⌘.", action: togglePin)
+        ]
+        if let pinPosition {
             items.append(
                 PopoverMenuItem(
                     title: "Move Up in Pinned", systemImage: "arrow.up",
-                    isEnabled: pinnedIndex > 0, shortcut: "⌥⌘↑"
-                ) {
-                    movePinned(-1)
-                })
+                    isEnabled: pinPosition > 0, shortcut: "⌥⌘↑"
+                ) { movePin(-1) })
             items.append(
                 PopoverMenuItem(
                     title: "Move Down in Pinned", systemImage: "arrow.down",
-                    isEnabled: pinnedIndex < pinnedCount - 1, shortcut: "⌥⌘↓"
-                ) {
-                    movePinned(1)
-                })
+                    isEnabled: pinPosition < pinCount - 1, shortcut: "⌥⌘↓"
+                ) { movePin(1) })
         }
-
-        items.append(
+        items.append(contentsOf: [
             PopoverMenuItem(
                 title: "Actual Size", systemImage: "magnifyingglass",
-                isEnabled: columns != defaultColumns, startsSection: true, shortcut: "⌘0"
-            ) {
-                setColumns(defaultColumns)
-            })
-        items.append(
+                isEnabled: canZoom(.actualSize), startsSection: true, shortcut: "⌘0"
+            ) { zoom(.actualSize) },
             PopoverMenuItem(
                 title: "Zoom In", systemImage: "plus.magnifyingglass",
-                isEnabled: columns.offset(by: -1) != nil, shortcut: "⌘+"
-            ) {
-                if let value = columns.offset(by: -1) { setColumns(value) }
-            })
-        items.append(
+                isEnabled: canZoom(.zoomIn), shortcut: "⌘+"
+            ) { zoom(.zoomIn) },
             PopoverMenuItem(
                 title: "Zoom Out", systemImage: "minus.magnifyingglass",
-                isEnabled: columns.offset(by: 1) != nil, shortcut: "⌘-"
-            ) {
-                if let value = columns.offset(by: 1) { setColumns(value) }
-            })
-
+                isEnabled: canZoom(.zoomOut), shortcut: "⌘-"
+            ) { zoom(.zoomOut) }
+        ])
         return PopoverMenuContent(header: entry.displayName, items: items)
     }
 }

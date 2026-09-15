@@ -72,11 +72,6 @@ struct PaletteShortcutTests {
         expect(resolve("q", control: true), nil, "⌃Q is not the quit chord")
         expect(resolve("r", command: true), .restart, "⌘R restarts the app")
         expect(resolve("r", command: true, shift: true), .restart, "an extra Shift still reads ⌘R")
-        expect(resolve("0", command: true), .actualSize, "⌘0 restores the configured grid size")
-        expect(resolve("+", command: true, shift: true), .zoomIn, "⌘+ zooms the grid in")
-        expect(resolve("=", command: true, shift: true), .zoomIn, "shifted = also resolves as ⌘+")
-        expect(resolve("-", command: true), .zoomOut, "⌘- zooms the grid out")
-        expect(resolve("-", command: true, option: true), nil, "⌥⌘- is not a grid shortcut")
 
         expect(resolve("k", command: true), nil, "⌘K belongs to the Actions menu")
         expect(resolve("p", command: true), nil, "⌘P belongs to the header filter")
@@ -84,7 +79,7 @@ struct PaletteShortcutTests {
 
         let expanded: [PaletteShortcut] = [
             .copyFile, .copyName, .copyPath, .pasteFile, .quickLook, .toggleFavorite, .hideFromSearch,
-            .quit, .restart, .movePinnedUp, .movePinnedDown, .actualSize, .zoomIn, .zoomOut
+            .quit, .restart
         ]
         let anywhere: [PaletteShortcut] = [.commandDelete, .delete, .deleteAll, .pin, .favoriteSlot(0)]
         for shortcut in expanded {
@@ -99,8 +94,7 @@ struct PaletteShortcutTests {
             .hideFromSearch
         ]
         let leaving: [PaletteShortcut] = [
-            .commandDelete, .pasteFile, .quit, .restart, .pin, .movePinnedUp, .movePinnedDown,
-            .actualSize, .zoomIn, .zoomOut, .favoriteSlot(0)
+            .commandDelete, .pasteFile, .quit, .restart, .pin, .favoriteSlot(0)
         ]
         for shortcut in closing {
             expect(shortcut.closesMenu, "\(shortcut) closes an open menu")
