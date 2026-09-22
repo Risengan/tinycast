@@ -7,13 +7,14 @@ struct SettingsRow<Icon: View, Trailing: View>: View {
     let title: String
     var subtitle: String?
     var subtitleLineLimit = 1
+    var alignment: VerticalAlignment = .center
     /// Set when a search result points at this row, so its title can carry the pulse.
     var anchor: SettingsAnchor?
     @ViewBuilder var icon: Icon
     @ViewBuilder var trailing: Trailing
 
     var body: some View {
-        HStack(spacing: Theme.Spacing.lg) {
+        HStack(alignment: alignment, spacing: Theme.Spacing.lg) {
             icon
             VStack(alignment: .leading, spacing: Theme.Spacing.xxs) {
                 Group {
@@ -43,11 +44,12 @@ struct SettingsRow<Icon: View, Trailing: View>: View {
 extension SettingsRow where Icon == EmptyView {
     init(
         title: String, subtitle: String? = nil, subtitleLineLimit: Int = 1,
-        anchor: SettingsAnchor? = nil,
+        alignment: VerticalAlignment = .center, anchor: SettingsAnchor? = nil,
         @ViewBuilder trailing: () -> Trailing
     ) {
         self.init(
             title: title, subtitle: subtitle, subtitleLineLimit: subtitleLineLimit,
+            alignment: alignment,
             anchor: anchor, icon: { EmptyView() },
             trailing: trailing)
     }

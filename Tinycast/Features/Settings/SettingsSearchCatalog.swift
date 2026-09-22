@@ -143,8 +143,8 @@ enum SettingsSearchCatalog {
             .generalAppearance, "Background transparency",
             keywords: ["glass", "opacity", "blur", "translucency", "reset"]),
         .init(
-            .generalAppearance, "Compact mode",
-            keywords: ["slim", "search bar", "small"]),
+            .generalAppearance, "Window mode",
+            keywords: ["compact", "expanded", "slim", "search bar", "small"]),
         .init(
             .generalAppearance, "Show favorites in compact mode",
             keywords: ["pinned", "apps", "compact"]),
