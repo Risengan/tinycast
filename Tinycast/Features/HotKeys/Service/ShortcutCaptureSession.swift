@@ -22,6 +22,7 @@ final class ShortcutCaptureSession {
     @ObservationIgnored private var resignObserver: NSObjectProtocol?
     @ObservationIgnored private var conflictReset: Task<Void, Never>?
     @ObservationIgnored private var globeCommit: Task<Void, Never>?
+    @ObservationIgnored private weak var activeRecorderView: NSView?
     /// The same recognizer the global monitor uses, so recording needs no tap and no grant.
     @ObservationIgnored private var detector = DoubleTapDetector()
     @ObservationIgnored private var globeDetector = GlobeTapDetector()
@@ -78,8 +79,11 @@ final class ShortcutCaptureSession {
         // A click ends the recording then travels on, so one click can move to another row.
         if let monitor = NSEvent.addLocalMonitorForEvents(
             matching: [.leftMouseDown, .rightMouseDown],
-            handler: { [weak hotKeys] event in
-                MainActor.assumeIsolated { hotKeys?.recordingAction = nil }
+            handler: { [weak self, weak hotKeys] event in
+                MainActor.assumeIsolated {
+                    guard self?.activeRecorderContains(event) != true else { return }
+                    hotKeys?.recordingAction = nil
+                }
                 return event
             })
         {
@@ -109,6 +113,20 @@ final class ShortcutCaptureSession {
         heldGlobe = false
         detector.reset()
         globeDetector.cancel()
+        activeRecorderView = nil
+    }
+
+    func setActiveRecorderView(_ view: NSView) {
+        activeRecorderView = view
+    }
+
+    func clearActiveRecorderView(_ view: NSView) {
+        if activeRecorderView === view { activeRecorderView = nil }
+    }
+
+    private func activeRecorderContains(_ event: NSEvent) -> Bool {
+        guard let view = activeRecorderView, event.window === view.window else { return false }
+        return view.bounds.contains(view.convert(event.locationInWindow, from: nil))
     }
 
     private func handleKeyDown(
