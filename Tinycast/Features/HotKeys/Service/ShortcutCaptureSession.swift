@@ -79,11 +79,9 @@ final class ShortcutCaptureSession {
         // A click ends the recording then travels on, so one click can move to another row.
         if let monitor = NSEvent.addLocalMonitorForEvents(
             matching: [.leftMouseDown, .rightMouseDown],
-            handler: { [weak self, weak hotKeys] event in
-                MainActor.assumeIsolated {
-                    guard self?.activeRecorderContains(event) != true else { return }
-                    hotKeys?.recordingAction = nil
-                }
+            handler: { @MainActor [weak self, weak hotKeys] event in
+                guard self?.activeRecorderContains(event) != true else { return event }
+                hotKeys?.recordingAction = nil
                 return event
             })
         {

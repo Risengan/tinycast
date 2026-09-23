@@ -265,6 +265,19 @@ private struct AliasTextField: NSViewRepresentable {
             field.text = editor.string
         }
 
+        func textView(
+            _ textView: NSTextView, shouldChangeTextIn range: NSRange,
+            replacementString: String?
+        ) -> Bool {
+            guard let replacementString, replacementString.contains(where: \.isNewline) else {
+                return true
+            }
+            textView.insertText(
+                String(replacementString.map { $0.isNewline ? " " : $0 }),
+                replacementRange: range)
+            return false
+        }
+
         func textDidBeginEditing(_ notification: Notification) {
             field.focused = true
         }
