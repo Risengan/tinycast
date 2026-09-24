@@ -161,8 +161,9 @@ private struct QuicklinkSettingsRow: View {
         SettingsRow(title: quicklink.name, subtitle: quicklink.link) {
             SymbolImage(
                 name: quicklink.symbol,
-                size: Theme.Size.settingsRowIcon - Theme.Spacing.xs)
-                .frame(width: SettingsListMetrics.iconSize, height: SettingsListMetrics.iconSize)
+                size: Theme.Size.settingsRowIcon - Theme.Spacing.xs
+            )
+            .frame(width: SettingsListMetrics.iconSize, height: SettingsListMetrics.iconSize)
         } trailing: {
             if quicklink.isPinned {
                 Image(systemName: "pin.fill")

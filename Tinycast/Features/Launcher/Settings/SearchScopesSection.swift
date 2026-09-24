@@ -14,7 +14,8 @@ struct SearchScopesSection: View {
             ForEach(settings.searchScopes, id: \.self) { scope in
                 SettingsScopeRow(
                     scope: scope, path: SearchScopes.expand(scope),
-                    isMissing: missing.contains(scope)) {
+                    isMissing: missing.contains(scope)
+                ) {
                     settings.searchScopes.removeAll { $0 == scope }
                 }
             }

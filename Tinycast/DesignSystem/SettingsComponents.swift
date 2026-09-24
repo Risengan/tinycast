@@ -96,10 +96,12 @@ struct SettingsScopeRow: View {
                     .frame(
                         width: SettingsListMetrics.iconSize
                             - (isFolder ? Theme.Spacing.xxs + 1 : 0),
-                        height: SettingsListMetrics.iconSize - (isFolder ? 1 : 0))
+                        height: SettingsListMetrics.iconSize - (isFolder ? 1 : 0)
+                    )
                     .frame(
                         width: SettingsListMetrics.iconSize,
-                        height: SettingsListMetrics.iconSize)
+                        height: SettingsListMetrics.iconSize
+                    )
                     .accessibilityHidden(true)
                 Text(scope)
                     .lineLimit(1)
@@ -113,10 +115,12 @@ struct SettingsScopeRow: View {
 extension View {
     func settingsOptionSegment(isSelected: Bool) -> some View {
         let shape = RoundedRectangle(cornerRadius: Theme.Radius.barControl, style: .continuous)
-        return self
+        return
+            self
             .frame(
                 width: Theme.Size.settingsControlHeight,
-                height: Theme.Size.settingsControlHeight)
+                height: Theme.Size.settingsControlHeight
+            )
             .contentShape(shape)
             .background {
                 shape.fill(isSelected ? Theme.Colors.controlSurface : Color.clear)

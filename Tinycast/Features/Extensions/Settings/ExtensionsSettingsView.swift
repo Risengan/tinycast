@@ -82,7 +82,8 @@ struct ExtensionsSettingsView: View {
         Section {
             SettingsRow(
                 title: "What works",
-                subtitle: "List, detail, form, grid, no-view and menu-bar commands, plus preferences, storage and OAuth.",
+                subtitle:
+                    "List, detail, form, grid, no-view and menu-bar commands, plus preferences, storage and OAuth.",
                 subtitleLineLimit: 2
             ) {
                 ExtensionSettingsIcon(systemName: "checkmark.circle")
