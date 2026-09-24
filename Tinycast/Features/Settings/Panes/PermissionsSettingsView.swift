@@ -24,8 +24,17 @@ struct PermissionsSettingsView: View {
                         .help("Opens Privacy & Security › Accessibility.")
                     }
                 } label: {
-                    SettingsRowTitle(.permissionsAccessibility, "Accessibility")
-                    Text("Pastes into the app you were using.")
+                    HStack(spacing: Theme.Spacing.lg) {
+                        PermissionSettingsIcon(
+                            path:
+                                "/System/Library/ExtensionKit/Extensions/AccessibilitySettingsExtension.appex"
+                        )
+                        VStack(alignment: .leading, spacing: Theme.Spacing.xxs) {
+                            SettingsRowTitle(.permissionsAccessibility, "Accessibility")
+                            Text("Pastes into the app you were using.")
+                                .foregroundStyle(.secondary)
+                        }
+                    }
                 }
             } header: {
                 SettingsSectionHeader(.permissionsAccessibility)
@@ -54,8 +63,15 @@ struct PermissionsSettingsView: View {
                                 : "Opens Privacy & Security › Calendars.")
                     }
                 } label: {
-                    SettingsRowTitle(.permissionsCalendars, "Calendars")
-                    Text("Finds the join link for your next meeting.")
+                    HStack(spacing: Theme.Spacing.lg) {
+                        PermissionSettingsIcon(
+                            path: "/System/Applications/Calendar.app")
+                        VStack(alignment: .leading, spacing: Theme.Spacing.xxs) {
+                            SettingsRowTitle(.permissionsCalendars, "Calendars")
+                            Text("Finds the join link for your next meeting.")
+                                .foregroundStyle(.secondary)
+                        }
+                    }
                 }
             } header: {
                 SettingsSectionHeader(.permissionsCalendars)
@@ -88,5 +104,22 @@ struct PermissionsSettingsView: View {
         if trusted != accessibilityTrusted { accessibilityTrusted = trusted }
         let access = Permissions.calendarAccess()
         if access != calendarAccess { calendarAccess = access }
+    }
+}
+
+private struct PermissionSettingsIcon: View {
+    let path: String
+
+    var body: some View {
+        Image(nsImage: IconCache.icon(forFile: path))
+            .resizable()
+            .renderingMode(.original)
+            .interpolation(.high)
+            .id(IconCache.style.generation)
+            .frame(
+                width: SettingsListMetrics.iconSize,
+                height: SettingsListMetrics.iconSize
+            )
+            .accessibilityHidden(true)
     }
 }
