@@ -17,15 +17,9 @@ struct FallbacksSettingsView: View {
                         .foregroundStyle(.secondary)
                         .frame(maxWidth: .infinity, alignment: .center)
                 } else {
-                    // One row holding a lazy stack: a `Form` realizes every row it is handed.
-                    LazyVStack(spacing: 0) {
-                        ForEach(Array(fallbacks.enumerated()), id: \.element) { index, fallback in
-                            if index > 0 { Divider() }
-                            FallbackRow(fallback: fallback, order: fallbacks, index: index)
-                                .padding(.vertical, Self.rowPadding)
-                        }
+                    ForEach(Array(fallbacks.enumerated()), id: \.element) { index, fallback in
+                        FallbackRow(fallback: fallback, order: fallbacks, index: index)
                     }
-                    .padding(.vertical, -Self.rowPadding)
                 }
             } header: {
                 SettingsSectionHeader(.fallbacksFallbacks)
@@ -39,9 +33,6 @@ struct FallbacksSettingsView: View {
         .settingsScrollTarget(.fallbacks)
         .releasesFocusOnOutsideClick()
     }
-
-    /// A grouped `Form` row's own vertical padding.
-    private static let rowPadding: CGFloat = 15
 }
 
 private struct FallbackRow: View {
@@ -57,13 +48,16 @@ private struct FallbackRow: View {
         if let entry = core.fallbackCoordinator.entry(for: fallback) {
             SettingsRow(title: entry.name, subtitle: entry.kindLabel) {
                 AppIconView(app: entry)
-                    .frame(width: Theme.Size.settingsRowIcon, height: Theme.Size.settingsRowIcon)
+                    .frame(width: SettingsListMetrics.iconSize, height: SettingsListMetrics.iconSize)
             } trailing: {
                 Button {
                     move(by: -1)
                 } label: {
                     Image(systemName: "chevron.up")
                 }
+                .buttonStyle(.bordered)
+                .buttonBorderShape(.circle)
+                .controlSize(.large)
                 .disabled(index == 0)
                 .accessibilityLabel("Move \(entry.name) up")
                 Button {
@@ -71,6 +65,9 @@ private struct FallbackRow: View {
                 } label: {
                     Image(systemName: "chevron.down")
                 }
+                .buttonStyle(.bordered)
+                .buttonBorderShape(.circle)
+                .controlSize(.large)
                 .disabled(index == order.count - 1)
                 .accessibilityLabel("Move \(entry.name) down")
                 Toggle("", isOn: enabledBinding)
