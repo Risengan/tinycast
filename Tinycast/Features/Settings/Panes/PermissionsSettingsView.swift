@@ -22,7 +22,9 @@ struct PermissionsSettingsView: View {
                 } label: {
                     HStack(spacing: Theme.Spacing.lg) {
                         PermissionSettingsIcon(
-                            path: "/System/Library/ExtensionKit/Extensions/AccessibilitySettingsExtension.appex")
+                            path:
+                                "/System/Library/ExtensionKit/Extensions/AccessibilitySettingsExtension.appex"
+                        )
                         VStack(alignment: .leading, spacing: Theme.Spacing.xxs) {
                             SettingsRowTitle(.permissionsAccessibility, "Accessibility")
                             Text("Pastes into the app you were using.")
@@ -106,7 +108,8 @@ private struct PermissionSettingsIcon: View {
             .id(IconCache.style.generation)
             .frame(
                 width: Theme.Size.settingsRowIcon * 1.5,
-                height: Theme.Size.settingsRowIcon * 1.5)
+                height: Theme.Size.settingsRowIcon * 1.5
+            )
             .scaleEffect(1.23)
             .accessibilityHidden(true)
     }
