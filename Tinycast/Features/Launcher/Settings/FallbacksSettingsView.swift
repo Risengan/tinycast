@@ -55,9 +55,6 @@ private struct FallbackRow: View {
                 } label: {
                     Image(systemName: "chevron.up")
                 }
-                .buttonStyle(.bordered)
-                .buttonBorderShape(.circle)
-                .controlSize(.large)
                 .disabled(index == 0)
                 .accessibilityLabel("Move \(entry.name) up")
                 Button {
@@ -65,9 +62,6 @@ private struct FallbackRow: View {
                 } label: {
                     Image(systemName: "chevron.down")
                 }
-                .buttonStyle(.bordered)
-                .buttonBorderShape(.circle)
-                .controlSize(.large)
                 .disabled(index == order.count - 1)
                 .accessibilityLabel("Move \(entry.name) down")
                 Toggle("", isOn: enabledBinding)
