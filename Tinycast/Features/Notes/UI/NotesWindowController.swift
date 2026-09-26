@@ -52,6 +52,17 @@ final class NotesWindowController: NSObject, NSWindowDelegate {
         focusEditor(in: panel)
     }
 
+    func moveToTopRight() {
+        guard let panel, let visible = (panel.screen ?? NSScreen.main)?.visibleFrame else { return }
+        let inset: CGFloat = 40
+        let destination = NoteWindowPlacement.topRight(panel.frame, in: visible, inset: inset)
+        NSAnimationContext.runAnimationGroup { context in
+            context.duration = Theme.Duration.enter
+            context.timingFunction = CAMediaTimingFunction(name: .easeOut)
+            panel.animator().setFrame(destination, display: false)
+        }
+    }
+
     /// The bar's buttons never take focus, but the editor is re-seated in case anything else did.
     func format(_ action: NoteEditAction) {
         guard let panel, panel.isVisible, let editor else { return }
@@ -103,7 +114,7 @@ final class NotesWindowController: NSObject, NSWindowDelegate {
         let panel = NotesPanel(
             content: hosting,
             size: Theme.Size.noteWindow,
-            styleMask: [.titled, .closable, .resizable],
+            styleMask: [.titled, .closable, .miniaturizable, .resizable],
             acceptsMain: true)
         // A title-bar accessory drops AppKit off its centred-title layout, so `NotesView` draws it.
         panel.titleVisibility = .hidden
@@ -145,6 +156,8 @@ final class NotesWindowController: NSObject, NSWindowDelegate {
 
     /// Idempotent, because AppKit re-seats the lights on a resize and on every title assignment.
     private func seatTrafficLights(in window: NSWindow) {
+        window.standardWindowButton(.miniaturizeButton)?.isEnabled = false
+        window.standardWindowButton(.zoomButton)?.isEnabled = false
         let buttons = [NSWindow.ButtonType.closeButton, .miniaturizeButton, .zoomButton]
             .compactMap(window.standardWindowButton)
         guard let leading = buttons.first, let band = leading.superview?.bounds.height else {
