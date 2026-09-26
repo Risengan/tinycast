@@ -50,6 +50,7 @@ struct PalettePlacementTests {
         offsetsFollowTheirDisplay()
         restoringPartlyOffscreen()
         snapping()
+        expandedDetentFollowsGeometry()
         menuPanelAnchors()
         tokenGrammar()
         everyInterfaceSize()
@@ -222,6 +223,18 @@ struct PalettePlacementTests {
                 snapped(CGPoint(x: origin.x + 1, y: origin.y + 1), previous: held, speed: fast)
                     .height == .home,
                 "speed does not release an already held detent")
+        }
+    }
+
+    static func expandedDetentFollowsGeometry() {
+        let shifted = CGRect(x: 300, y: 50, width: 1800, height: 1000)
+        for size in InterfaceSize.allCases {
+            let panelHeight = size.metrics.size.panelHeight
+            let top = PalettePlacement.expandedCenterY(
+                in: shifted, expandedHeight: panelHeight)
+            expect(
+                top - panelHeight / 2, shifted.midY,
+                "the expanded detent stays centred after display or Interface Size changes")
         }
     }
 

@@ -104,6 +104,7 @@ enum Theme {
         static let dropGuideDash: CGFloat = 8
         static let dropGuideGap: CGFloat = 12
         static let dropGuideWidth: CGFloat = 2
+        static let dropGuideCombinedFlashTolerance: CGFloat = 6
         static let dropGuideFadeThreshold: CGFloat = 36
         static let dropGuideFadeDistance: CGFloat = 180
         static let bottomBarHeight: CGFloat = 52

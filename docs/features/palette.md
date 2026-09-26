@@ -237,8 +237,9 @@ width; a dragged one keeps its stored top-left unless the wider bar no longer le
 **Drag to reposition** (`AppSettings.paletteDraggable`, off by default) is the only thing that moves a
 panel already on screen. `WindowDragHandle` claims mouse-down on the top strip and on the header's
 margins and inter-item gaps (`RootPaletteView.headerGutter`) — everywhere in the header no control
-occupies. The search field is a handle too, but **only while it is empty**: `EmptyFieldDragHandle`
-declines the hit-test outright the moment there is text to select, or marked text being composed.
+occupies. The launcher magnifier is a handle too. The search field is one **only while it is empty**:
+`EmptyFieldDragHandle` declines the hit-test outright the moment there is text to select, or marked
+text being composed.
 Measuring the query and claiming the run past it was the older rule, and it cost the thing a search
 field is for — a selection almost always starts or ends past the last glyph, so every such press moved
 the window instead. A field with a caret in it is being edited; nothing in it is a handle.
@@ -273,7 +274,8 @@ detent extends horizontally beyond the centre-line range. Entry requires a delib
 than 600pt/s; a quick pass neither snaps nor flashes, while an already held detent keeps its normal
 release range. Entering the line or a height detent gives one system haptic tick. The vertical guides
 briefly turn blue on centre-line alignment; the horizontal guide flashes blue on the home detent,
-or all three when both alignments engage in the same move.
+or all three when both alignments engage within 6pt of vertical travel.
+Guides appear neutral when a drag starts on an existing alignment; only a new entry flashes.
 The vertical dashes are 8pt with 12pt gaps; the
 horizontal dashes adjust slightly to the panel width so one continuous line leaves the same empty
 gap at both intersections. They fade in after the first move and fade out on release, using the same
@@ -292,8 +294,12 @@ relative survives rearranging that display or rescaling it, so no key goes stale
 that display shows less than `Theme.Size.paletteMinimumVisible` of the compact bar. Dropping at the
 home detent clears that display's stored position.
 
-The position is deliberately **not** in a settings backup — it is machine-local geometry, the same
-reason the Settings window autosaves its frame instead ([backup.md](backup.md)).
+The lower expanded-centre detent also records its display separately, so restoring it recomputes
+the centre for the current visible frame and Interface Size instead of reusing an obsolete offset.
+
+The position and its detent are deliberately **not** in a settings backup — they are machine-local
+geometry, the same reason the Settings window autosaves its frame instead
+([backup.md](backup.md)).
 
 Which display the palette anchors to depends on the **Follow the cursor across displays**
 setting (`AppSettings.openOnCursorScreen`, on by default):

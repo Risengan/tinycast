@@ -24,6 +24,10 @@ enum PalettePlacement {
         CGPoint(x: visibleFrame.minX + offset.x, y: visibleFrame.maxY - offset.y)
     }
 
+    static func expandedCenterY(in visibleFrame: CGRect, expandedHeight: CGFloat) -> CGFloat {
+        visibleFrame.midY + expandedHeight / 2
+    }
+
     /// Nil once the display shows too little of the compact bar to grab it back.
     static func restored(
         _ stored: CGPoint, graspable: CGSize, visibleFrame: CGRect, minimumVisible: CGFloat
@@ -59,7 +63,7 @@ enum PalettePlacement {
         else {
             return Snap(anchor: anchor, centeredX: false, height: nil)
         }
-        let expandedY = visibleFrame.midY + expandedHeight / 2
+        let expandedY = expandedCenterY(in: visibleFrame, expandedHeight: expandedHeight)
         let candidateHeight: HeightSnap?
         if abs(anchor.y - home.y) <= distance
             && abs(anchor.y - home.y) <= abs(anchor.y - expandedY)

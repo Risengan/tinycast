@@ -35,6 +35,7 @@ final class PaletteWindowController: NSObject, NSWindowDelegate {
         var visibleFrame: CGRect
         var displayKey: String
         var snap: PalettePlacement.Snap
+        var verticalEntryY: CGFloat?
         var lastRawAnchor: CGPoint
         var lastSampleTime: TimeInterval?
         var moved = false
@@ -283,10 +284,11 @@ final class PaletteWindowController: NSObject, NSWindowDelegate {
             expandedHeight: metrics.size.panelHeight,
             within: Theme.Size.paletteSnapDistance, previous: nil, speed: 0)
         // Mere proximity must not latch a fast drag before its first move.
+        let pixel = 1 / screen.backingScaleFactor
         let restingSnap = PalettePlacement.Snap(
             anchor: current,
-            centeredX: candidate.centeredX && candidate.anchor.x == current.x,
-            height: candidate.anchor == current ? candidate.height : nil)
+            centeredX: candidate.centeredX && abs(candidate.anchor.x - current.x) <= pixel,
+            height: abs(candidate.anchor.y - current.y) <= pixel ? candidate.height : nil)
         drag = DragSession(
             home: home, screenFrame: screen.frame, visibleFrame: screen.visibleFrame,
             displayKey: screen.displayKey, snap: restingSnap,
@@ -301,11 +303,12 @@ final class PaletteWindowController: NSObject, NSWindowDelegate {
         dropGuides.hide()
         guard let session, session.moved, let anchor else { return }
         if session.snap.centeredX && session.snap.height == .home {
-            core.settings.setPalettePosition(nil, on: session.displayKey)
+            core.settings.setPalettePosition(nil, on: session.displayKey, expandedCenter: false)
             return
         }
         core.settings.setPalettePosition(
-            PalettePlacement.offset(of: anchor, on: session.visibleFrame), on: session.displayKey)
+            PalettePlacement.offset(of: anchor, on: session.visibleFrame), on: session.displayKey,
+            expandedCenter: session.snap.centeredX && session.snap.height == .expandedCenter)
     }
 
     /// Snap live, with height detents available only on the centre line.
@@ -323,6 +326,7 @@ final class PaletteWindowController: NSObject, NSWindowDelegate {
             session.displayKey = screen.displayKey
             session.home = defaultAnchor(on: screen)
             session.snap = PalettePlacement.Snap(anchor: moved, centeredX: false, height: nil)
+            session.verticalEntryY = nil
         }
         let snap = PalettePlacement.snapped(
             moved, home: session.home, visibleFrame: session.visibleFrame,
@@ -330,6 +334,12 @@ final class PaletteWindowController: NSObject, NSWindowDelegate {
             previous: session.snap, speed: speed)
         let enteredVertical = snap.centeredX && !session.snap.centeredX
         let enteredHome = snap.height == .home && session.snap.height != .home
+        if enteredVertical { session.verticalEntryY = moved.y }
+        if let verticalEntryY = session.verticalEntryY,
+            !snap.centeredX || abs(moved.y - verticalEntryY) > Theme.Size.dropGuideCombinedFlashTolerance
+        {
+            session.verticalEntryY = nil
+        }
         if enteredVertical || (snap.height != nil && snap.height != session.snap.height) {
             NSHapticFeedbackManager.defaultPerformer.perform(
                 .alignment, performanceTime: .drawCompleted)
@@ -343,7 +353,8 @@ final class PaletteWindowController: NSObject, NSWindowDelegate {
                 screenFrame: session.screenFrame, dragged: snap.anchor)
         }
         if enteredHome {
-            dropGuides.flash(enteredVertical ? .both : .horizontal)
+            dropGuides.flash(session.verticalEntryY == nil ? .horizontal : .both)
+            session.verticalEntryY = nil
         } else if enteredVertical {
             dropGuides.flash(.vertical)
         }
@@ -462,8 +473,16 @@ final class PaletteWindowController: NSObject, NSWindowDelegate {
     /// This display's own corner, unless too little of the bar would stay grabbable.
     private func restoredAnchor(on screen: NSScreen) -> CGPoint? {
         guard let offset = core.settings.palettePosition(on: screen.displayKey) else { return nil }
+        let stored = PalettePlacement.anchor(for: offset, on: screen.visibleFrame)
+        let position =
+            core.settings.paletteExpandedCenterDisplays.contains(screen.displayKey)
+            ? CGPoint(
+                x: defaultAnchor(on: screen).x,
+                y: PalettePlacement.expandedCenterY(
+                    in: screen.visibleFrame, expandedHeight: metrics.size.panelHeight))
+            : stored
         return PalettePlacement.restored(
-            PalettePlacement.anchor(for: offset, on: screen.visibleFrame),
+            position,
             graspable: CGSize(width: metrics.size.panelWidth, height: metrics.size.compactHeight),
             visibleFrame: screen.visibleFrame,
             minimumVisible: Theme.Size.paletteMinimumVisible)
