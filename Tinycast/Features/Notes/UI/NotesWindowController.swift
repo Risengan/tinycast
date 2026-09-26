@@ -104,6 +104,11 @@ final class NotesWindowController: NSObject, NSWindowDelegate {
         seatTrafficLights(in: panel)
     }
 
+    func windowDidUpdate(_ notification: Notification) {
+        guard let panel else { return }
+        seatTrafficLights(in: panel)
+    }
+
     // MARK: - Private
 
     private func ensurePanel() -> NotesPanel {
