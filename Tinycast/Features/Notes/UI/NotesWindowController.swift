@@ -154,6 +154,12 @@ final class NotesWindowController: NSObject, NSWindowDelegate {
             CGSize(
                 width: max(panel.frame.width, Theme.Size.noteWindow.width),
                 height: max(panel.frame.height, Theme.Size.noteWindow.height)))
+        if let close = panel.standardWindowButton(.closeButton) {
+            close.postsFrameChangedNotifications = true
+            NotificationCenter.default.addObserver(
+                self, selector: #selector(trafficLightFrameDidChange),
+                name: NSView.frameDidChangeNotification, object: close)
+        }
         self.panel = panel
         observeTitle()
         return panel
@@ -176,6 +182,14 @@ final class NotesWindowController: NSObject, NSWindowDelegate {
         for button in buttons {
             button.frame.origin.x += shift
             button.frame.origin.y = y
+        }
+    }
+
+    @objc private func trafficLightFrameDidChange(_ notification: Notification) {
+        // AppKit can finish laying out the traffic lights after posting the frame change.
+        Task { @MainActor [weak self] in
+            guard let self, let panel else { return }
+            seatTrafficLights(in: panel)
         }
     }
 
