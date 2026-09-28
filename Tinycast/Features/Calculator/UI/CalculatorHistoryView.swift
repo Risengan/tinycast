@@ -121,15 +121,8 @@ private struct CalcHistoryRow: View {
 
     var body: some View {
         HStack(spacing: metrics.spacing.lg) {
-            RoundedRectangle(cornerRadius: metrics.radius.thumbnail, style: .continuous)
-                .fill(Theme.Colors.controlSurface)
-                .frame(width: metrics.size.rowIcon, height: metrics.size.rowIcon)
-                .overlay(
-                    Image(systemName: "plus.forwardslash.minus")
-                        .font(.system(size: 12))
-                        .symbolRenderingMode(.hierarchical)
-                        .foregroundStyle(.secondary)
-                )
+            Image(nsImage: IconCache.symbolIcon(named: "plus.forwardslash.minus")).resizable()
+                .frame(width: metrics.size.resultRowIcon, height: metrics.size.resultRowIcon)
             Text(format.localizedExpression(entry.expression))
                 .font(metrics.typography.rowTitle)
                 .foregroundStyle(.secondary)

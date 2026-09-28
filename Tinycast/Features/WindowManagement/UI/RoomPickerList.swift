@@ -89,7 +89,7 @@ private struct RoomPickerRowView: View {
                     EntryIconView(source: .symbol("macwindow"))
                 }
             }
-            .frame(width: metrics.size.rowIcon, height: metrics.size.rowIcon)
+            .frame(width: metrics.size.resultRowIcon, height: metrics.size.resultRowIcon)
             Text(title)
                 .font(metrics.typography.rowTitle)
                 .lineLimit(1)
