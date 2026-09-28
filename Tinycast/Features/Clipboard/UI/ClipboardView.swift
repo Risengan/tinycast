@@ -143,7 +143,8 @@ private struct ClipboardRow: View {
     }
 
     var body: some View {
-        HStack(spacing: metrics.spacing.lg) {
+        IconCache.observeStyle()
+        return HStack(spacing: metrics.spacing.lg) {
             thumbnail(item.colorValue)
                 .frame(width: metrics.size.resultRowIcon, height: metrics.size.resultRowIcon)
             Text(previewText)

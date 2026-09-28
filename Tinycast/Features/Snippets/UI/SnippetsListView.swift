@@ -60,7 +60,8 @@ private struct SnippetRow: View {
     }
 
     var body: some View {
-        HStack(spacing: metrics.spacing.lg) {
+        IconCache.observeStyle()
+        return HStack(spacing: metrics.spacing.lg) {
             Image(nsImage: IconCache.symbolIcon(named: "curlybraces")).resizable()
                 .frame(width: metrics.size.resultRowIcon, height: metrics.size.resultRowIcon)
             Text(record.snippet.name)
