@@ -14,7 +14,7 @@ enum EmojiGrid {
     @MainActor
     static func sections(
         query: String, index: EmojiIndex, frequent: FrequentEmojiStore,
-        pinned: PinnedEmojiStore, filter: EmojiCategoryFilter
+        pinned: PinnedEmojiStore, filter: EmojiCategoryFilter, columns: EmojiGridColumns
     ) -> [EmojiGridSection] {
         var sections: [EmojiGridSection] = []
         var start = 0
@@ -26,17 +26,18 @@ enum EmojiGrid {
 
         let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
         if trimmed.isEmpty {
+            let frequentEntries = frequent.recent(columns.rawValue * 2).compactMap(index.entry(for:))
             switch filter {
             case .all:
                 append("Pinned", pinned.glyphs.compactMap(index.entry(for:)))
-                append("Frequently Used", frequent.top().compactMap(index.entry(for:)))
+                append("Frequently Used", frequentEntries)
                 for section in index.categorySections {
                     append(section.category.title, section.entries)
                 }
             case .pinned:
                 append("Pinned", pinned.glyphs.compactMap(index.entry(for:)))
             case .frequentlyUsed:
-                append("Frequently Used", frequent.top().compactMap(index.entry(for:)))
+                append("Frequently Used", frequentEntries)
             case .category(let category):
                 if let section = index.categorySections.first(where: { $0.category == category }) {
                     append(section.category.title, section.entries)
@@ -52,7 +53,7 @@ enum EmojiGrid {
                 let glyphs = Set(pinned.glyphs)
                 filtered = results.filter { glyphs.contains($0.glyph) }
             case .frequentlyUsed:
-                let glyphs = Set(frequent.top())
+                let glyphs = Set(frequent.recent(columns.rawValue * 2))
                 filtered = results.filter { glyphs.contains($0.glyph) }
             case .category(let category):
                 filtered = results.filter { $0.category == category }
@@ -309,10 +310,10 @@ private struct EmojiCell: View {
             Text(glyph)
                 .font(.system(size: glyphSize))
             if selected {
-                // Let the same colours tint the slim outer ring, then restore a crisp light edge.
-                selectedHalo
-                    .mask(shape.strokeBorder(lineWidth: 2))
                 shape.strokeBorder(Theme.Colors.emojiSelectionBorder, lineWidth: 2)
+                selectedHalo
+                    .opacity(0.30)
+                    .mask(shape.strokeBorder(lineWidth: 2))
                 shape.inset(by: 2)
                     .strokeBorder(Theme.Colors.emojiInnerBorder, lineWidth: 1)
             } else if hovered {

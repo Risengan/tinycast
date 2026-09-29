@@ -32,7 +32,7 @@ struct EmojiScreen: PaletteScreen {
     private var sections: [EmojiGridSection] {
         EmojiGrid.sections(
             query: vm.query, index: index, frequent: frequent, pinned: pinned,
-            filter: vm.emojiCategoryFilter)
+            filter: vm.emojiCategoryFilter, columns: columns)
     }
 
     /// Flat grid order across sections — what the selection indexes.
@@ -89,7 +89,16 @@ struct EmojiScreen: PaletteScreen {
 
     func zoom(_ zoom: EmojiGridZoom) {
         guard let next = columns.applying(zoom, default: defaultColumns) else { return }
+        let selectedSection = sections.first {
+            $0.entries.indices.contains(vm.selection - $0.start)
+        }
+        let offset = selectedSection.map { vm.selection - $0.start }
         vm.emojiGridColumnsOverride = next == defaultColumns ? nil : next
+        if let selectedSection, let offset,
+            let updated = sections.first(where: { $0.id == selectedSection.id })
+        {
+            vm.selection = updated.start + min(offset, updated.entries.count - 1)
+        }
     }
 
     /// One visual row vertically, spilling into the neighbour by column; one cell horizontally.
