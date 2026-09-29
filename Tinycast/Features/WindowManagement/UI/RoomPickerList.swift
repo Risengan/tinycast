@@ -123,6 +123,6 @@ private struct RoomPickerRowView: View {
                     .foregroundStyle(.white)
             }
         }
-        .frame(width: metrics.size.rowIcon, height: metrics.size.rowIcon)
+        .frame(width: metrics.size.resultRowIcon, height: metrics.size.resultRowIcon)
     }
 }
