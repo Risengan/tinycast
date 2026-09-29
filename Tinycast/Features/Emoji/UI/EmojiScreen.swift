@@ -89,16 +89,24 @@ struct EmojiScreen: PaletteScreen {
 
     func zoom(_ zoom: EmojiGridZoom) {
         guard let next = columns.applying(zoom, default: defaultColumns) else { return }
-        let selectedSection = sections.first {
-            $0.entries.indices.contains(vm.selection - $0.start)
-        }
-        let offset = selectedSection.map { vm.selection - $0.start }
         vm.emojiGridColumnsOverride = next == defaultColumns ? nil : next
-        if let selectedSection, let offset,
-            let updated = sections.first(where: { $0.id == selectedSection.id })
-        {
-            vm.selection = updated.start + min(offset, updated.entries.count - 1)
+    }
+
+    /// Blind to the filter and query, so only a use or a density change rewrites it.
+    var frequentlyUsed: [String] {
+        EmojiGrid.frequentlyUsed(frequent, in: index, columns: columns).map(\.glyph)
+    }
+
+    func frequentlyUsedChanged(from old: [String], to new: [String]) {
+        guard isBrowsing else { return }
+        let start: Int
+        switch vm.emojiCategoryFilter {
+        case .all: start = visiblePins.count
+        case .frequentlyUsed: start = 0
+        case .pinned, .category: return
         }
+        vm.selection = EmojiGridGeometry.selection(
+            vm.selection, afterSectionAt: start, changesFrom: old, to: new)
     }
 
     /// One visual row vertically, spilling into the neighbour by column; one cell horizontally.

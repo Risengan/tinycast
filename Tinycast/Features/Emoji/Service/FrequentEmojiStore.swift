@@ -27,7 +27,7 @@ final class FrequentEmojiStore {
         if let data = try? Data(contentsOf: fileURL),
             let decoded = try? JSONDecoder().decode([FrequentEmoji].self, from: data)
         {
-            records = decoded.sorted { $0.lastUsed > $1.lastUsed }
+            records = Self.history(decoded)
         } else {
             records = []
         }
@@ -52,17 +52,8 @@ final class FrequentEmojiStore {
     /// Replaces the tallies wholesale from a backup, under the same cap `record` enforces.
     func replace(_ imported: [FrequentEmoji]) {
         revision &+= 1
-        records = Array(
-            imported
-                .filter { !$0.glyph.isEmpty && $0.count > 0 }
-                .sorted { $0.lastUsed > $1.lastUsed }
-                .prefix(Self.cap))
+        records = Self.history(imported)
         persist()
-    }
-
-    /// Most recently used glyphs, independent of their usage counts.
-    func recent(_ n: Int = 16) -> [String] {
-        Array(records.prefix(n).map(\.glyph))
     }
 
     /// Most-used glyphs (recency breaks ties), newest habits first.
@@ -73,6 +64,17 @@ final class FrequentEmojiStore {
                 .map(\.glyph)
         }
         return Array(sorted.prefix(n))
+    }
+
+    /// A backup can repeat a glyph; only its newest tally is kept, so each takes one grid cell.
+    private static func history(_ tallies: [FrequentEmoji]) -> [FrequentEmoji] {
+        var seen = Set<String>()
+        return Array(
+            tallies
+                .filter { !$0.glyph.isEmpty && $0.count > 0 }
+                .sorted { $0.lastUsed > $1.lastUsed }
+                .filter { seen.insert($0.glyph).inserted }
+                .prefix(cap))
     }
 
     private func persist() {

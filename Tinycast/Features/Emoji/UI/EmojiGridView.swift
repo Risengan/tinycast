@@ -26,18 +26,17 @@ enum EmojiGrid {
 
         let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
         if trimmed.isEmpty {
-            let frequentEntries = frequent.recent(columns.rawValue * 2).compactMap(index.entry(for:))
             switch filter {
             case .all:
                 append("Pinned", pinned.glyphs.compactMap(index.entry(for:)))
-                append("Frequently Used", frequentEntries)
+                append("Frequently Used", frequentlyUsed(frequent, in: index, columns: columns))
                 for section in index.categorySections {
                     append(section.category.title, section.entries)
                 }
             case .pinned:
                 append("Pinned", pinned.glyphs.compactMap(index.entry(for:)))
             case .frequentlyUsed:
-                append("Frequently Used", frequentEntries)
+                append("Frequently Used", frequentlyUsed(frequent, in: index, columns: columns))
             case .category(let category):
                 if let section = index.categorySections.first(where: { $0.category == category }) {
                     append(section.category.title, section.entries)
@@ -53,7 +52,7 @@ enum EmojiGrid {
                 let glyphs = Set(pinned.glyphs)
                 filtered = results.filter { glyphs.contains($0.glyph) }
             case .frequentlyUsed:
-                let glyphs = Set(frequent.recent(columns.rawValue * 2))
+                let glyphs = Set(frequentlyUsed(frequent, in: index, columns: columns).map(\.glyph))
                 filtered = results.filter { glyphs.contains($0.glyph) }
             case .category(let category):
                 filtered = results.filter { $0.category == category }
@@ -61,6 +60,14 @@ enum EmojiGrid {
             append("Results", filtered)
         }
         return sections
+    }
+
+    /// Two rows of the latest emoji, counted over the catalog so a glyph it lacks takes no cell.
+    @MainActor
+    static func frequentlyUsed(
+        _ frequent: FrequentEmojiStore, in index: EmojiIndex, columns: EmojiGridColumns
+    ) -> [EmojiEntry] {
+        Array(frequent.records.lazy.compactMap { index.entry(for: $0.glyph) }.prefix(columns.rawValue * 2))
     }
 }
 
