@@ -55,7 +55,7 @@ final class DictationAudioDucker {
             try snapshot.control.setVolumeScalarValue(first)
             self.snapshot?.lastSet = (try? snapshot.control.volumeScalarValue) ?? first
         } catch {
-            clear()
+            restoreImmediately()
             return
         }
         transition = Task { [weak self] in

@@ -1,6 +1,5 @@
 import AppKit
 import AVFoundation
-import Combine
 import SwiftUI
 
 struct DictationSettingsView: View {
@@ -181,9 +180,11 @@ struct DictationSettingsView: View {
         .onChange(of: settings.dictationEnabled) { _, enabled in
             if enabled { microphones = DictationCapture.microphones }
         }
-        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
-            microphoneAccess = Permissions.microphoneAccess()
-            if settings.dictationEnabled { microphones = DictationCapture.microphones }
+        .task {
+            for await _ in NotificationCenter.default.notifications(named: NSApplication.didBecomeActiveNotification) {
+                microphoneAccess = Permissions.microphoneAccess()
+                if settings.dictationEnabled { microphones = DictationCapture.microphones }
+            }
         }
         .task(id: settings.dictationEnabled ? settings.dictationModel : nil) {
             modelSize = nil

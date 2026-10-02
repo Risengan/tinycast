@@ -14,18 +14,28 @@ enum DictationModelDownloader {
     static func download(
         _ model: DictationModel, destination: URL,
         baseURL: URL = URL(string: "https://huggingface.co/")!,
+        protocolClasses: [AnyClass]? = nil,
         onProgress: @escaping @Sendable (Int64, Int64) -> Void = { _, _ in }
     ) async throws {
         let configuration = URLSessionConfiguration.ephemeral
         configuration.urlCache = nil
+        configuration.protocolClasses = protocolClasses
         let session = URLSession(configuration: configuration)
         defer { session.invalidateAndCancel() }
 
         let fileManager = FileManager.default
-        try fileManager.createDirectory(at: destination.deletingLastPathComponent(),
+        let root = destination.deletingLastPathComponent()
+        try fileManager.createDirectory(at: root,
             withIntermediateDirectories: true)
-        let staging = destination.deletingLastPathComponent()
-            .appendingPathComponent(".\(UUID().uuidString)")
+        for directory in try fileManager.contentsOfDirectory(at: root,
+            includingPropertiesForKeys: [.isDirectoryKey, .isSymbolicLinkKey]) {
+            let name = directory.lastPathComponent
+            guard name.hasPrefix("."), UUID(uuidString: String(name.dropFirst())) != nil else { continue }
+            let values = try directory.resourceValues(forKeys: [.isDirectoryKey, .isSymbolicLinkKey])
+            guard values.isDirectory == true, values.isSymbolicLink != true else { continue }
+            try fileManager.removeItem(at: directory)
+        }
+        let staging = root.appendingPathComponent(".\(UUID().uuidString)")
         try fileManager.createDirectory(at: staging, withIntermediateDirectories: true)
         defer { try? fileManager.removeItem(at: staging) }
         var files = try await manifest(repository: model.repository, revision: model.revision,

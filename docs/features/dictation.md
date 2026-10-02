@@ -63,7 +63,8 @@ compilation of its 2-bit weights; Ultra's encoder and both variants' decoder/joi
   published only when all required files arrive, their sizes agree with the manifest and large-file
   SHA-256 checksums match. Settings shows combined byte progress for the selected model; switching
   selection leaves its download running in the background. Cancellation and
-  normal quit remove staging files without publishing a partial model.
+  normal quit remove staging files without publishing a partial model. A new download removes stale
+  staging directories left by a crash or forced quit, without touching installed models or other files.
 - An installed Qwen model exposes a language hint; Auto leaves language detection to the model. Parakeet
   does not accept a language hint. Neither adapter exposes user vocabulary. Qwen prepares its fixed
   prompts and supported language hints once, then retains only the tokenizer's decoding tables
@@ -78,8 +79,8 @@ compilation of its 2-bit weights; Ultra's encoder and both variants' decoder/joi
 `dictation-test` checks formatting and model options; `dictation-inference-test` checks score selection,
 byte BPE, Fourier/mel features, listening bands and audio partitioning without downloading a model. `dictation-worker-test`
 exercises framed IPC, worker reuse/switching, removal, cancellation and broken pipes with a fixture.
-A local download fixture checks combined byte progress and atomic installation for both families,
-including cancellation cleanup, without fetching real models.
+An in-process URLProtocol fixture checks combined byte progress and atomic installation for both
+families, including cancellation and stale staging cleanup, without sockets or timed waits.
 
 Also exercise all four real models, short and long recordings, downloads/removal, initial microphone
 grant and denial, hold/toggle shortcuts, Return/Escape, output destinations, surrounding text with

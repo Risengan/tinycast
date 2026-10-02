@@ -4556,7 +4556,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.tinycast.app.dev;
+				PRODUCT_BUNDLE_IDENTIFIER = "$(TINYCAST_BUNDLE_IDENTIFIER)";
 				PRODUCT_NAME = "Tinycast Dev";
 				SDKROOT = macosx;
 			};
@@ -4573,7 +4573,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.tinycast.dictation;
+				PRODUCT_BUNDLE_IDENTIFIER = "$(TINYCAST_BUNDLE_IDENTIFIER).dictation";
 				PRODUCT_MODULE_NAME = DictationHelper;
 				PRODUCT_NAME = "$(DICTATION_EXECUTABLE_NAME)";
 				SDKROOT = macosx;
@@ -4594,7 +4594,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.tinycast.dictation.dev;
+				PRODUCT_BUNDLE_IDENTIFIER = "$(TINYCAST_BUNDLE_IDENTIFIER).dictation";
 				PRODUCT_MODULE_NAME = DictationHelper;
 				PRODUCT_NAME = "$(DICTATION_EXECUTABLE_NAME)";
 				SDKROOT = macosx;
@@ -4619,7 +4619,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.tinycast.app;
+				PRODUCT_BUNDLE_IDENTIFIER = "$(TINYCAST_BUNDLE_IDENTIFIER)";
 				SDKROOT = macosx;
 			};
 			name = Release;
@@ -4691,6 +4691,7 @@
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_STRICT_CONCURRENCY = complete;
 				SWIFT_VERSION = 6.0;
+				TINYCAST_BUNDLE_IDENTIFIER = com.tinycast.app.dev;
 			};
 			name = Debug;
 		};
@@ -4775,6 +4776,7 @@
 				SWIFT_OPTIMIZATION_LEVEL = "-O";
 				SWIFT_STRICT_CONCURRENCY = complete;
 				SWIFT_VERSION = 6.0;
+				TINYCAST_BUNDLE_IDENTIFIER = com.tinycast.app;
 			};
 			name = Release;
 		};

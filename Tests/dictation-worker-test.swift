@@ -1,3 +1,4 @@
+import CryptoKit
 import Foundation
 import Synchronization
 
@@ -29,9 +30,13 @@ struct DictationWorkerTest {
             let request = DictationWire.Request(id: UUID(), model: .ultra,
                 directory: URL(fileURLWithPath: "/tmp/models"), sampleCount: samples.count,
                 language: nil)
-            let task = Task { try await worker.transcribe(samples, request: request, onReady: {}) }
+            let ready = AsyncStream<Void>.makeStream()
+            let task = Task {
+                try await worker.transcribe(samples, request: request) { ready.continuation.yield(()) }
+            }
             if behavior == "wait" {
-                try await Task.sleep(for: .milliseconds(100))
+                var iterator = ready.stream.makeAsyncIterator()
+                _ = await iterator.next()
                 task.cancel()
             }
             do {
@@ -82,87 +87,63 @@ struct DictationWorkerTest {
     }
 
     private static func testDownload(root: URL) async throws {
-        let server = Process(), output = Pipe()
-        server.executableURL = URL(fileURLWithPath: "/usr/bin/env")
         let models: [DictationModel] = [.redux, .qwenSmall]
-        let files = models.reduce(into: Set<String>()) { $0.formUnion($1.requiredFiles) }.sorted().map {
-            $0.hasSuffix(".mlmodelc") ? $0 + "/weights.bin" : $0
-        }
-        guard let paths = String(bytes: try JSONEncoder().encode(files), encoding: .utf8) else {
-            fatalError("Invalid download fixture paths")
-        }
-        server.arguments = ["node", "-e", """
-            const http = require('http'), crypto = require('crypto');
-            const content = Buffer.alloc(524288, 65);
-            const files = JSON.parse(process.argv[1]).map(path => ({path, type: 'file', size: content.length,
-                lfs: {oid: crypto.createHash('sha256').update(content).digest('hex')}}));
-            const server = http.createServer((request, response) => {
-                if (request.url.includes('/tree/')) {
-                    response.end(JSON.stringify(files));
-                    return;
-                }
-                response.writeHead(200, {'Content-Length': content.length});
-                let offset = 0;
-                const timer = setInterval(() => {
-                    response.write(content.subarray(offset, offset + 65536));
-                    offset += 65536;
-                    if (offset >= content.length) { clearInterval(timer); response.end(); }
-                }, 40);
-                response.on('close', () => clearInterval(timer));
-            });
-            server.listen(0, '127.0.0.1', () => console.log(server.address().port));
-            """, paths]
-        server.standardOutput = output
-        server.standardError = FileHandle.nullDevice
-        let exit = try server.runObservingExit()
-        defer { if server.isRunning { server.terminate() }; exit.wait() }
-        try output.fileHandleForWriting.close()
-        var data = Data()
-        while data.last != 10, data.count < 8 {
-            guard let byte = try output.fileHandleForReading.read(upToCount: 1), !byte.isEmpty else {
-                fatalError("Download fixture exited before starting")
-            }
-            data.append(byte)
-        }
-        guard let text = String(bytes: data, encoding: .utf8),
-            let port = Int(text.trimmingCharacters(in: .whitespacesAndNewlines)),
-            let base = URL(string: "http://127.0.0.1:\(port)/") else { fatalError("Download fixture did not start") }
+        let base = URL(string: "https://dictation.test/")!
+        let manager = FileManager.default
+        let stale = root.appending(path: ".\(UUID())")
+        try manager.createDirectory(at: stale, withIntermediateDirectories: true)
+        try Data([0]).write(to: stale.appending(path: "weights.bin"))
+        let preserved = [".keep", ".\(UUID())", "installed-model", ".\(UUID())"]
+        for name in preserved.prefix(2) { try Data([1]).write(to: root.appending(path: name)) }
+        try manager.createDirectory(at: root.appending(path: "installed-model"), withIntermediateDirectories: false)
+        try manager.createSymbolicLink(at: root.appending(path: preserved[3]),
+            withDestinationURL: root.appending(path: "installed-model"))
         let events = Mutex<[(received: Int64, total: Int64)]>([])
         let destination = root.appending(path: DictationModel.redux.folderName)
+        let started = AsyncStream<Void>.makeStream()
+        DownloadFixture.state.withLock {
+            $0.hold = true
+            $0.onFile = { started.continuation.yield(()) }
+        }
         let cancelled = Task.detached {
-            try await DictationModelDownloader.download(.redux, destination: destination, baseURL: base) { received, total in
-                events.withLock { $0.append((received, total)) }
-            }
+            try await DictationModelDownloader.download(.redux, destination: destination,
+                baseURL: base, protocolClasses: [DownloadFixture.self])
         }
-        let deadline = ContinuousClock.now.advanced(by: .seconds(5))
-        while !events.withLock({ $0.contains { $0.received > 0 && $0.received < 524288 } }),
-            ContinuousClock.now < deadline {
-            try await Task.sleep(for: .milliseconds(20))
-        }
+        var iterator = started.stream.makeAsyncIterator()
+        _ = await iterator.next()
         cancelled.cancel()
         do {
             try await cancelled.value
             fatalError("Cancelled download installed a model")
         } catch is CancellationError {
         } catch let error as URLError where error.code == .cancelled {}
-        guard !FileManager.default.fileExists(atPath: destination.path),
-            try FileManager.default.contentsOfDirectory(atPath: root.path).isEmpty else {
-            fatalError("Cancellation retained a partial model")
+        guard try manager.contentsOfDirectory(atPath: root.path).sorted() == preserved.sorted() else {
+            fatalError("Cancellation or stale staging cleanup changed the wrong files")
         }
+        DownloadFixture.state.withLock { $0 = .init() }
         for model in models {
             events.withLock { $0.removeAll() }
             try await DictationModelDownloader.download(model, destination: root.appending(path: model.folderName),
-                baseURL: base) { received, total in events.withLock { $0.append((received, total)) } }
+                baseURL: base, protocolClasses: [DownloadFixture.self]) { received, total in
+                events.withLock { $0.append((received, total)) }
+            }
             let progress = events.withLock { $0 }
-            let expected = Int64(model.requiredFiles.count) * 524288
+            let expected = Int64(model.requiredFiles.count * DownloadFixture.content.count)
             guard progress.first?.received == 0, progress.last?.received == expected,
                 progress.allSatisfy({ $0.total == expected && $0.received <= expected }),
                 zip(progress, progress.dropFirst()).allSatisfy({ $0.received <= $1.received }),
-                progress.contains(where: { $0.received > 0 && $0.received < 524288 }) else {
+                progress.contains(where: { $0.received > 0 && $0.received < expected }) else {
                 fatalError("Combined download progress is incorrect")
             }
         }
-        guard try FileManager.default.contentsOfDirectory(atPath: root.path).sorted() == models.map(\.folderName).sorted() else {
+        DownloadFixture.state.withLock { $0.corrupt = true }
+        do {
+            try await DictationModelDownloader.download(.redux, destination: root.appending(path: "corrupt"),
+                baseURL: base, protocolClasses: [DownloadFixture.self])
+            fatalError("Invalid checksum installed a model")
+        } catch let error as URLError where error.code == .badServerResponse {}
+        let expectedNames = (preserved + models.map(\.folderName)).sorted()
+        guard try manager.contentsOfDirectory(atPath: root.path).sorted() == expectedNames else {
             fatalError("Atomic installation retained staging files")
         }
     }
@@ -172,9 +153,55 @@ struct DictationWorkerTest {
             try DictationWire.write(DictationWire.Response(id: request.id, status: .ready), to: .standardOutput)
             if CommandLine.arguments.contains("crash") { exit(1) }
             _ = try DictationWire.readExactly(request.sampleCount * 4, from: .standardInput)
-            if CommandLine.arguments.contains("wait") { Thread.sleep(forTimeInterval: 10) }
+            if CommandLine.arguments.contains("wait") {
+                _ = try DictationWire.readExactly(1, from: .standardInput)
+                return
+            }
             try DictationWire.write(DictationWire.Response(id: request.id, status: .result,
                 text: request.model.rawValue), to: .standardOutput)
         }
     }
+}
+
+// URL loading owns each instance; shared fixture state is protected by its mutex.
+private final class DownloadFixture: URLProtocol, @unchecked Sendable {
+    struct State {
+        var hold = false
+        var corrupt = false
+        var onFile: (@Sendable () -> Void)?
+    }
+
+    static let state = Mutex(State())
+    static let content = Data(repeating: 65, count: 4096)
+
+    override static func canInit(with request: URLRequest) -> Bool { request.url?.host == "dictation.test" }
+    override static func canonicalRequest(for request: URLRequest) -> URLRequest { request }
+
+    override func startLoading() {
+        guard let url = request.url else { return }
+        let response = HTTPURLResponse(url: url, statusCode: 200, httpVersion: nil, headerFields: nil)!
+        client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+        if url.path.contains("/tree/") {
+            let checksum = SHA256.hash(data: Self.content).map { String(format: "%02x", $0) }.joined()
+            let files = [DictationModel.redux, .qwenSmall].reduce(into: Set<String>()) {
+                $0.formUnion($1.requiredFiles)
+            }.sorted().map { name in
+                ["path": name.hasSuffix(".mlmodelc") ? name + "/weights.bin" : name,
+                 "type": "file", "size": Self.content.count, "lfs": ["oid": checksum]] as [String: Any]
+            }
+            guard let data = try? JSONSerialization.data(withJSONObject: files) else {
+                fatalError("Invalid download fixture manifest")
+            }
+            client?.urlProtocol(self, didLoad: data)
+        } else {
+            let state = Self.state.withLock { $0 }
+            let data = state.corrupt ? Data(repeating: 66, count: Self.content.count) : Self.content
+            client?.urlProtocol(self, didLoad: state.hold ? data.prefix(1024) : data)
+            state.onFile?()
+            if state.hold { return }
+        }
+        client?.urlProtocolDidFinishLoading(self)
+    }
+
+    override func stopLoading() {}
 }
