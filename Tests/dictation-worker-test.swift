@@ -8,6 +8,14 @@ struct DictationWorkerTest {
 
     @MainActor
     static func main() async throws {
+        if CommandLine.arguments.contains("--competing-download") {
+            do {
+                try await DictationModelDownloader.download(.redux,
+                    destination: URL(fileURLWithPath: CommandLine.arguments.last!),
+                    baseURL: URL(string: "https://dictation.test/")!, protocolClasses: [DownloadFixture.self])
+                fatalError("Another process acquired the same download root")
+            } catch DictationWire.Failure.busy { return }
+        }
         if CommandLine.arguments.contains("--fixture") { try fixture(); return }
         let executable = URL(fileURLWithPath: CommandLine.arguments[0])
         let worker = try DictationWorker(executable: executable, arguments: ["--fixture"])
@@ -93,7 +101,7 @@ struct DictationWorkerTest {
         let stale = root.appending(path: ".\(UUID())")
         try manager.createDirectory(at: stale, withIntermediateDirectories: true)
         try Data([0]).write(to: stale.appending(path: "weights.bin"))
-        let preserved = [".keep", ".\(UUID())", "installed-model", ".\(UUID())"]
+        let preserved = [".keep", ".\(UUID())", "installed-model", ".\(UUID())", ".download-lock", "other-channel"]
         for name in preserved.prefix(2) { try Data([1]).write(to: root.appending(path: name)) }
         try manager.createDirectory(at: root.appending(path: "installed-model"), withIntermediateDirectories: false)
         try manager.createSymbolicLink(at: root.appending(path: preserved[3]),
@@ -111,6 +119,31 @@ struct DictationWorkerTest {
         }
         var iterator = started.stream.makeAsyncIterator()
         _ = await iterator.next()
+        let active = try manager.contentsOfDirectory(atPath: root.path).sorted()
+        do {
+            try await DictationModelDownloader.download(.qwenSmall,
+                destination: root.appending(path: DictationModel.qwenSmall.folderName),
+                baseURL: base, protocolClasses: [DownloadFixture.self])
+            fatalError("Concurrent download acquired the same root")
+        } catch DictationWire.Failure.busy {}
+        let competitor = Process()
+        competitor.executableURL = URL(fileURLWithPath: CommandLine.arguments[0])
+        competitor.arguments = ["--competing-download", destination.path]
+        let exit = try competitor.runObservingExit()
+        await Task.detached { exit.wait() }.value
+        guard competitor.terminationStatus == 0 else {
+            fatalError("Cross-process download protection failed")
+        }
+        guard try manager.contentsOfDirectory(atPath: root.path).sorted() == active else {
+            fatalError("Concurrent download changed active staging")
+        }
+        DownloadFixture.state.withLock { $0 = .init() }
+        let other = root.appending(path: "other-channel/\(DictationModel.redux.folderName)")
+        try await DictationModelDownloader.download(.redux, destination: other,
+            baseURL: base, protocolClasses: [DownloadFixture.self])
+        guard manager.fileExists(atPath: other.path) else {
+            fatalError("An independent download root was blocked")
+        }
         cancelled.cancel()
         do {
             try await cancelled.value

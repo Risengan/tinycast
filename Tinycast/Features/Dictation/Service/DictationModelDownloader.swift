@@ -1,4 +1,5 @@
 import CryptoKit
+import Darwin
 import Foundation
 import Synchronization
 
@@ -27,6 +28,15 @@ enum DictationModelDownloader {
         let root = destination.deletingLastPathComponent()
         try fileManager.createDirectory(at: root,
             withIntermediateDirectories: true)
+        let descriptor = open(root.appending(path: ".download-lock").path,
+            O_CREAT | O_RDWR | O_CLOEXEC | O_NOFOLLOW, S_IRUSR | S_IWUSR)
+        guard descriptor >= 0 else { throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO) }
+        defer { close(descriptor) }
+        guard flock(descriptor, LOCK_EX | LOCK_NB) == 0 else {
+            if errno == EWOULDBLOCK { throw DictationWire.Failure.busy }
+            throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO)
+        }
+        // Keep the lock file's inode stable so every instance locks the same resource.
         for directory in try fileManager.contentsOfDirectory(at: root,
             includingPropertiesForKeys: [.isDirectoryKey, .isSymbolicLinkKey]) {
             let name = directory.lastPathComponent
