@@ -18,7 +18,10 @@ settings:
     CODE_SIGN_IDENTITY: "Tinycast Self-Signed"
     SWIFT_STRICT_CONCURRENCY: complete
   configs:
+    Debug:
+      DICTATION_EXECUTABLE_NAME: Tinycast Dev Dictation
     Release:
+      DICTATION_EXECUTABLE_NAME: Tinycast Dictation
       # Release-only: library validation refuses Debug's `.debug.dylib`, whose team never matches.
       ENABLE_HARDENED_RUNTIME: YES
       # Strip the shipped binary (dSYM is still generated first) and drop unused code.
@@ -38,6 +41,7 @@ targets:
         excludes:
           - Features/Clipboard/Service/ClipboardTextExtractor.swift
           - Features/Clipboard/Service/ClipboardTextHelper.swift
+          - Features/Dictation/Helper
           - Resources/EmojiKeywords
       # A folder reference keeps the packs in their own directory, which `EmojiIndex` lists.
       - path: Tinycast/Resources/EmojiKeywords
@@ -46,6 +50,17 @@ targets:
       - path: NOTICE.md
         buildPhase: resources
     dependencies:
+      - target: DictationHelper
+        link: false
+        embed: false
+      # Resolve the embedded helper against the active channel, not Xcode's default configuration.
+      - framework: "$(BUILT_PRODUCTS_DIR)/$(DICTATION_EXECUTABLE_NAME).app"
+        link: false
+        embed: true
+        codeSign: true
+        copy:
+          destination: wrapper
+          subpath: Contents/Helpers
       - target: ClipboardTextHelper
         link: false
         embed: true
@@ -85,3 +100,31 @@ targets:
         EXECUTABLE_NAME: ClipboardTextHelper
         PRODUCT_MODULE_NAME: ClipboardTextHelper
         SKIP_INSTALL: YES
+
+  DictationHelper:
+    type: application
+    platform: macOS
+    info:
+      path: Tinycast/Features/Dictation/Helper/Info.plist
+      properties:
+        CFBundleName: "$(DICTATION_EXECUTABLE_NAME)"
+        CFBundleDisplayName: "$(DICTATION_EXECUTABLE_NAME)"
+        LSUIElement: true
+    sources:
+      - Tinycast/Features/Dictation/Helper
+      - Tinycast/Features/Dictation/Model/DictationModel.swift
+      - Tinycast/Features/Dictation/Model/DictationAudioChunks.swift
+      - Tinycast/Features/Dictation/Model/DictationLanguage.swift
+      - Tinycast/Features/Dictation/Service/DictationWire.swift
+    settings:
+      base:
+        EXECUTABLE_NAME: "$(DICTATION_EXECUTABLE_NAME)"
+        PRODUCT_NAME: "$(DICTATION_EXECUTABLE_NAME)"
+        WRAPPER_NAME: "$(DICTATION_EXECUTABLE_NAME).app"
+        PRODUCT_MODULE_NAME: DictationHelper
+        PRODUCT_BUNDLE_IDENTIFIER: com.tinycast.dictation
+        SKIP_INSTALL: YES
+        SWIFT_OPTIMIZATION_LEVEL: -O
+      configs:
+        Debug:
+          PRODUCT_BUNDLE_IDENTIFIER: com.tinycast.dictation.dev

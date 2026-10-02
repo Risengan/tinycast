@@ -45,6 +45,10 @@ The app target builds and embeds `ClipboardTextHelper` under `Contents/Helpers`,
 Build the app scheme to include it; copying only the main executable omits OCR support. The helper's
 executable name stays fixed even when release builds override the app's product name for a channel.
 
+Dictation similarly embeds its Swift/Core ML helper, named `Tinycast Dev Dictation` in Debug and
+`Tinycast Dictation` in Release, in an accessory `.app` bundle without a bundled icon. Model weights
+download on demand; none are app resources.
+
 ### The dev channel
 
 Debug builds are a separate channel: **`Tinycast Dev.app`**, bundle id `com.tinycast.app.dev`. Every
