@@ -15,6 +15,9 @@
 writes one `HotKeyBinding`, so all cases share persistence, conflict detection, the recorder and
 the keycap rendering — only the _engine_ differs.
 
+Carbon's dispatcher enters through an explicit `@MainActor` callback. Press and release handlers
+return `OSStatus` synchronously, preserving event order and hold-to-talk release handling.
+
 ## Invariants
 
 - **Hotkeys persist as JSON strings under `hotkey.<action>` UserDefaults keys**, and
