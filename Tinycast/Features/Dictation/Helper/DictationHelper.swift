@@ -23,7 +23,8 @@ enum DictationHelper {
             while let request = try DictationWire.read(DictationWire.Request.self, from: input) {
                 try DictationTensor.checkParent()
                 guard (1...DictationWire.maximumSamples).contains(request.sampleCount),
-                    request.directory.isFileURL else {
+                    request.directory.isFileURL
+                else {
                     throw DictationInferenceError.invalidAudio
                 }
                 if loaded != request.model {
@@ -37,26 +38,32 @@ enum DictationHelper {
                         }
                         loaded = request.model
                     } catch {
-                        try DictationWire.write(DictationWire.Response(id: request.id, status: .failed), to: output)
+                        try DictationWire.write(
+                            DictationWire.Response(id: request.id, status: .failed), to: output)
                         continue
                     }
                 }
                 guard let recognizer else { throw DictationInferenceError.incompatibleModel }
                 try DictationWire.write(DictationWire.Response(id: request.id, status: .ready), to: output)
                 try autoreleasepool {
-                    let data = try DictationWire.readExactly(request.sampleCount * MemoryLayout<Float>.size, from: input)
+                    let data = try DictationWire.readExactly(
+                        request.sampleCount * MemoryLayout<Float>.size, from: input)
                     let samples = [Float](unsafeUninitializedCapacity: request.sampleCount) { buffer, count in
                         data.withUnsafeBytes { bytes in
                             UnsafeMutableRawBufferPointer(buffer).copyMemory(from: bytes)
                         }
                         count = request.sampleCount
                     }
-                    guard samples.allSatisfy({ $0.isFinite }) else { throw DictationInferenceError.invalidAudio }
+                    guard samples.allSatisfy({ $0.isFinite }) else {
+                        throw DictationInferenceError.invalidAudio
+                    }
                     do {
                         let text = try recognizer.transcribe(samples, language: request.language)
-                        try DictationWire.write(DictationWire.Response(id: request.id, status: .result, text: text), to: output)
+                        try DictationWire.write(
+                            DictationWire.Response(id: request.id, status: .result, text: text), to: output)
                     } catch {
-                        try DictationWire.write(DictationWire.Response(id: request.id, status: .failed), to: output)
+                        try DictationWire.write(
+                            DictationWire.Response(id: request.id, status: .failed), to: output)
                     }
                 }
             }

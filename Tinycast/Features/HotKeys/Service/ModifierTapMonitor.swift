@@ -20,7 +20,8 @@ private func modifierTapEventTapCallback(
     }
     let isFlagsChanged = type == .flagsChanged
     let flagsRaw = event.flags.rawValue
-    let keyCode = type == .keyDown || isFlagsChanged
+    let keyCode =
+        type == .keyDown || isFlagsChanged
         ? Int(event.getIntegerValueField(.keyboardEventKeycode)) : -1
     MainActor.assumeIsolated {
         monitor.process(isFlagsChanged: isFlagsChanged, flagsRaw: flagsRaw, keyCode: keyCode)
@@ -104,9 +105,12 @@ final class ModifierTapMonitor: HealthCheckable {
             input = .modifiers(modifiers, hasOtherModifiers: Self.hasOtherModifiers(in: flags))
         } else {
             // Return and Escape belong to the dictation panel while a hold is active.
-            if holding, keyCode == kVK_Return || keyCode == kVK_ANSI_KeypadEnter
-                || keyCode == kVK_Escape
-            { return }
+            if holding,
+                keyCode == kVK_Return || keyCode == kVK_ANSI_KeypadEnter
+                    || keyCode == kVK_Escape
+            {
+                return
+            }
             modifierDetector.cancel()
             cancelPendingSingle()
             cancelHold()
@@ -149,7 +153,8 @@ final class ModifierTapMonitor: HealthCheckable {
                 onTrigger?(key.doubleBinding)
             } else if bound.contains(key.singleBinding) {
                 cancelPendingSingle()
-                let hasDoubleTap = bound.contains(key.doubleBinding)
+                let hasDoubleTap =
+                    bound.contains(key.doubleBinding)
                     || key.modifier.map { bound.contains(.doubleTap($0)) } == true
                 guard hasDoubleTap else {
                     modifierDetector.cancel()

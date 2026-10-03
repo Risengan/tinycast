@@ -24,7 +24,8 @@ enum DictationTextFormatter {
         }
     }
 
-    static func format(_ transcription: String, context: Context?, adaptCapitalization: Bool = true) -> String {
+    static func format(_ transcription: String, context: Context?, adaptCapitalization: Bool = true) -> String
+    {
         var text = transcription.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty, let context else { return text }
         if adaptCapitalization, let first = text.first, first.isLetter {

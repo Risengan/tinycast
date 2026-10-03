@@ -216,28 +216,35 @@ struct DoubleTapDetectorTests {
             (0x8, .leftCommand), (0x10, .rightCommand)
         ]
         for (mask, key) in physicalMasks {
-            expect(ModifierKey.held(in: mask | 0xFFFF_0000, globeDown: false) == [key],
+            expect(
+                ModifierKey.held(in: mask | 0xFFFF_0000, globeDown: false) == [key],
                 "\(key) comes from its own device flag, not generic flags")
         }
-        expect(ModifierKey.held(in: 0, globeDown: true) == [.globe],
+        expect(
+            ModifierKey.held(in: 0, globeDown: true) == [.globe],
             "only a physical Globe transition introduces Globe")
         for key in ModifierKey.allCases {
             for binding in [key.singleBinding, key.doubleBinding] {
                 let encoded = try? JSONEncoder().encode(binding)
-                expect(encoded.flatMap { try? JSONDecoder().decode(HotKeyBinding.self, from: $0) }
-                    == binding, "\(binding) persists without losing its side")
-                expect(spelling.binding(from: spelling.text(for: binding)) == binding,
+                expect(
+                    encoded.flatMap { try? JSONDecoder().decode(HotKeyBinding.self, from: $0) }
+                        == binding, "\(binding) persists without losing its side")
+                expect(
+                    spelling.binding(from: spelling.text(for: binding)) == binding,
                     "\(binding) round-trips in settings.json")
             }
             var detector = ModifierKeyDetector()
             expect(detector.handle([key], at: 0) == .pressed(key), "\(key) presses immediately")
-            expect(detector.handle([], at: 0.05) == .released(key, doubleTap: false, held: false),
+            expect(
+                detector.handle([], at: 0.05) == .released(key, doubleTap: false, held: false),
                 "\(key) single tap")
             _ = detector.handle([key], at: 0.2)
-            expect(detector.handle([], at: 0.25) == .released(key, doubleTap: true, held: false),
+            expect(
+                detector.handle([], at: 0.25) == .released(key, doubleTap: true, held: false),
                 "\(key) double tap")
             _ = detector.handle([key], at: 1)
-            expect(detector.handle([], at: 2) == .released(key, doubleTap: false, held: true),
+            expect(
+                detector.handle([], at: 2) == .released(key, doubleTap: false, held: true),
                 "\(key) can be recorded by holding")
             _ = detector.handle([key], at: 3)
             detector.cancel()
@@ -251,34 +258,46 @@ struct DoubleTapDetectorTests {
         _ = detector.handle([.leftCommand], at: 0)
         _ = detector.handle([], at: 0.05)
         _ = detector.handle([.rightCommand], at: 0.1)
-        expect(detector.handle([], at: 0.15)
-            == .released(.rightCommand, doubleTap: false, held: false),
+        expect(
+            detector.handle([], at: 0.15)
+                == .released(.rightCommand, doubleTap: false, held: false),
             "opposite sides cannot complete each other's double tap")
         _ = detector.handle([.leftCommand], at: 1)
-        expect(detector.handle([.leftCommand, .rightCommand], at: 1.1) == .cancelled,
+        expect(
+            detector.handle([.leftCommand, .rightCommand], at: 1.1) == .cancelled,
             "both Command keys held cancels the lone press")
-        expect(detector.handle([.rightCommand], at: 1.2) == .cancelled,
+        expect(
+            detector.handle([.rightCommand], at: 1.2) == .cancelled,
             "unwinding a chord does not start a fresh hold")
         expect(detector.handle([], at: 1.3) == nil, "a chord release cannot trigger a tap")
-        expect(ModifierKey.held(in: 0x18, globeDown: false) == [.leftCommand, .rightCommand],
+        expect(
+            ModifierKey.held(in: 0x18, globeDown: false) == [.leftCommand, .rightCommand],
             "device flags distinguish both Command keys")
-        expect(ModifierKey.held(in: 0xFFFF_0080, globeDown: false).isEmpty,
+        expect(
+            ModifierKey.held(in: 0xFFFF_0080, globeDown: false).isEmpty,
             "generic flags and Caps Lock alone cannot invent a physical key")
-        expect(ModifierKey.leftCommand.singleBinding.keycaps == ["Left", "⌘"],
+        expect(
+            ModifierKey.leftCommand.singleBinding.keycaps == ["Left", "⌘"],
             "the physical side is visible in every shortcut display")
-        expect(!HotKeyBinding.modifier(.leftCommand).conflicts(with: .modifier(.rightCommand)),
+        expect(
+            !HotKeyBinding.modifier(.leftCommand).conflicts(with: .modifier(.rightCommand)),
             "different sides can hold separate actions")
-        expect(HotKeyBinding.doubleTap(.command).conflicts(with: .doubleModifier(.leftCommand)),
+        expect(
+            HotKeyBinding.doubleTap(.command).conflicts(with: .doubleModifier(.leftCommand)),
             "generic and sided double taps overlap")
-        expect(!HotKeyBinding.modifier(.leftCommand).conflicts(with: .doubleModifier(.leftCommand)),
+        expect(
+            !HotKeyBinding.modifier(.leftCommand).conflicts(with: .doubleModifier(.leftCommand)),
             "a single and double tap can coexist")
-        expect(HotKeyBinding.modifier(.leftCommand).conflicts(
-            with: .doubleModifier(.leftCommand), holdsModifier: true),
+        expect(
+            HotKeyBinding.modifier(.leftCommand).conflicts(
+                with: .doubleModifier(.leftCommand), holdsModifier: true),
             "a hold reserves its key across single and double taps")
-        expect(HotKeyBinding.modifier(.leftCommand).conflicts(
-            with: .doubleTap(.command), holdsModifier: true),
+        expect(
+            HotKeyBinding.modifier(.leftCommand).conflicts(
+                with: .doubleTap(.command), holdsModifier: true),
             "a hold cannot shadow a generic double tap")
-        expect(spelling.binding(from: "left cmd+k") == nil,
+        expect(
+            spelling.binding(from: "left cmd+k") == nil,
             "ordinary combinations remain side-agnostic")
     }
 
@@ -457,9 +476,10 @@ struct DoubleTapDetectorTests {
             expect(key.doubleBinding.recorderPrefix == prefix, "double \(key) retains its side")
             expect(key.doubleBinding.recorderKeycaps == [glyph, glyph], "double \(key) has two caps")
         }
-        for binding in [HotKeyBinding.globe, .doubleGlobe, .doubleTap(.command),
-            .combo(combo([.command, .shift]))]
-        {
+        for binding in [
+            HotKeyBinding.globe, .doubleGlobe, .doubleTap(.command),
+            .combo(combo([.command, .shift]))
+        ] {
             expect(binding.recorderPrefix == nil, "\(binding) has no physical side label")
             expect(binding.recorderKeycaps == binding.keycaps, "\(binding) keeps its existing caps")
         }
@@ -495,37 +515,49 @@ struct DoubleTapDetectorTests {
                     var generic = DoubleTapDetector()
                     let modifiers = Set(keys.compactMap(\.modifier))
                     for time in [0.0, 1.0] {
-                        expect(sided.handle(keys, at: time) == .cancelled,
+                        expect(
+                            sided.handle(keys, at: time) == .cancelled,
                             "\(context): Hyper cannot start dictation's lone-key hold")
-                        expect(sided.handle(keys, at: time + 0.01) == nil,
+                        expect(
+                            sided.handle(keys, at: time + 0.01) == nil,
                             "\(context): repeated Hyper flags cannot start a hold")
-                        expect(sided.handle([], at: time + duration) == nil,
+                        expect(
+                            sided.handle([], at: time + duration) == nil,
                             "\(context): Hyper release cannot complete a single or double tap")
-                        expect(generic.handle(.modifiers(modifiers, hasOtherModifiers: false),
-                            at: time) == nil, "\(context): Hyper is not a generic modifier tap")
-                        expect(generic.handle(.modifiers([], hasOtherModifiers: false),
-                            at: time + duration) == nil, "\(context): Hyper release never double-taps")
+                        expect(
+                            generic.handle(
+                                .modifiers(modifiers, hasOtherModifiers: false),
+                                at: time) == nil, "\(context): Hyper is not a generic modifier tap")
+                        expect(
+                            generic.handle(
+                                .modifiers([], hasOtherModifiers: false),
+                                at: time + duration) == nil, "\(context): Hyper release never double-taps")
                     }
                 }
 
                 for survivor in ModifierKey.allCases {
                     var detector = ModifierKeyDetector()
                     _ = detector.handle([survivor], at: 0)
-                    expect(detector.handle(keys.union([survivor]), at: 0.05) == .cancelled,
+                    expect(
+                        detector.handle(keys.union([survivor]), at: 0.05) == .cancelled,
                         "\(context): adding Hyper cancels \(survivor)'s pending hold")
-                    expect(detector.handle([survivor], at: 0.1) == .cancelled,
+                    expect(
+                        detector.handle([survivor], at: 0.1) == .cancelled,
                         "\(context): releasing Hyper cannot restart \(survivor)'s hold")
-                    expect(detector.handle([], at: 0.15) == nil,
+                    expect(
+                        detector.handle([], at: 0.15) == nil,
                         "\(context): unwinding Hyper cannot fire \(survivor)'s tap")
                     _ = detector.handle([survivor], at: 0.2)
-                    expect(detector.handle([], at: 0.25)
-                        == .released(survivor, doubleTap: false, held: false),
+                    expect(
+                        detector.handle([], at: 0.25)
+                            == .released(survivor, doubleTap: false, held: false),
                         "\(context): a fresh \(survivor) tap still works after Hyper")
                     _ = detector.handle(keys, at: 0.3)
                     _ = detector.handle([], at: 0.35)
                     _ = detector.handle([survivor], at: 0.4)
-                    expect(detector.handle([], at: 0.45)
-                        == .released(survivor, doubleTap: false, held: false),
+                    expect(
+                        detector.handle([], at: 0.45)
+                            == .released(survivor, doubleTap: false, held: false),
                         "\(context): Hyper interrupts an awaiting \(survivor) double tap")
                 }
             }

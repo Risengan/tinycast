@@ -35,16 +35,20 @@ enum DictationTensor {
 
     static func indexOfMaximum(in scores: MLMultiArray) throws -> Int {
         guard scores.count > 0, scores.dataType == .float16,
-            scores.shape.last?.intValue == scores.count, scores.strides.last?.intValue == 1 else {
+            scores.shape.last?.intValue == scores.count, scores.strides.last?.intValue == 1
+        else {
             throw DictationInferenceError.incompatibleModel
         }
         let values = try [Float](unsafeUninitializedCapacity: scores.count) { values, initialized in
             try scores.withUnsafeBytes { bytes in
-                var source = vImage_Buffer(data: UnsafeMutableRawPointer(mutating: bytes.baseAddress!),
+                var source = vImage_Buffer(
+                    data: UnsafeMutableRawPointer(mutating: bytes.baseAddress!),
                     height: 1, width: vImagePixelCount(scores.count), rowBytes: scores.count * 2)
-                var destination = vImage_Buffer(data: values.baseAddress!,
+                var destination = vImage_Buffer(
+                    data: values.baseAddress!,
                     height: 1, width: vImagePixelCount(scores.count), rowBytes: scores.count * 4)
-                let status = vImageConvert_Planar16FtoPlanarF(&source, &destination, vImage_Flags(kvImageDoNotTile))
+                let status = vImageConvert_Planar16FtoPlanarF(
+                    &source, &destination, vImage_Flags(kvImageDoNotTile))
                 guard status == kvImageNoError else {
                     throw DictationInferenceError.incompatibleModel
                 }
@@ -57,7 +61,8 @@ enum DictationTensor {
     static func load(_ name: String, at directory: URL, units: MLComputeUnits = .all) throws -> MLModel {
         let configuration = MLModelConfiguration()
         configuration.computeUnits = units
-        return try MLModel(contentsOf: directory.appendingPathComponent(name + ".mlmodelc"),
+        return try MLModel(
+            contentsOf: directory.appendingPathComponent(name + ".mlmodelc"),
             configuration: configuration)
     }
 

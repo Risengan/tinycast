@@ -40,7 +40,8 @@ final class DictationCapture {
             granted = permission == .authorized
         }
         guard granted else { throw Failure.microphoneDenied }
-        let device = microphoneID.map { id in Self.microphones.first { $0.uniqueID == id } }
+        let device =
+            microphoneID.map { id in Self.microphones.first { $0.uniqueID == id } }
             ?? AVCaptureDevice.default(for: .audio)
         guard let device else { throw Failure.microphoneUnavailable }
         guard let input = try? AVCaptureDeviceInput(device: device) else {

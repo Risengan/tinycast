@@ -20,20 +20,27 @@ final class DictationTokenizer {
         var characters = [String]()
         var bytes = [Unicode.Scalar: UInt8]()
         for byte in 0...255 {
-            let literal = (33...126).contains(byte) || (161...172).contains(byte) || (174...255).contains(byte)
+            let literal =
+                (33...126).contains(byte) || (161...172).contains(byte) || (174...255).contains(byte)
             let scalar = Unicode.Scalar(literal ? byte : extra)!
             if !literal { extra += 1 }
             characters.append(String(scalar))
             bytes[scalar] = UInt8(byte)
         }
         characterBytes = bytes
-        let pattern = try NSRegularExpression(pattern:
-            #"(?i:'s|'t|'re|'ve|'m|'ll|'d)|[^\r\n\p{L}\p{N}]?\p{L}+|\p{N}{1,3}|"#
-            + #" ?[^\s\p{L}\p{N}]+[\r\n]*|\s*[\r\n]+|\s+(?!\S)|\s+"#)
-        self.prompts = Dictionary(uniqueKeysWithValues: try Set(prompts).map { text in
-            (text, try Self.encode(text, vocabulary: vocabulary, ranks: ranks,
-                byteCharacters: characters, pattern: pattern))
-        })
+        let pattern = try NSRegularExpression(
+            pattern:
+                #"(?i:'s|'t|'re|'ve|'m|'ll|'d)|[^\r\n\p{L}\p{N}]?\p{L}+|\p{N}{1,3}|"#
+                + #" ?[^\s\p{L}\p{N}]+[\r\n]*|\s*[\r\n]+|\s+(?!\S)|\s+"#)
+        self.prompts = Dictionary(
+            uniqueKeysWithValues: try Set(prompts).map { text in
+                (
+                    text,
+                    try Self.encode(
+                        text, vocabulary: vocabulary, ranks: ranks,
+                        byteCharacters: characters, pattern: pattern)
+                )
+            })
     }
 
     func tokens(for prompt: String) throws -> [Int] {
@@ -51,7 +58,9 @@ final class DictationTokenizer {
             var parts = text[range].utf8.map { byteCharacters[Int($0)] }
             while parts.count > 1 {
                 let candidate = (0..<(parts.count - 1)).compactMap { index -> (Int, Int)? in
-                    guard let rank = ranks[Pair(left: parts[index], right: parts[index + 1])] else { return nil }
+                    guard let rank = ranks[Pair(left: parts[index], right: parts[index + 1])] else {
+                        return nil
+                    }
                     return (index, rank)
                 }.min { $0.1 < $1.1 }
                 guard let (index, _) = candidate else { break }

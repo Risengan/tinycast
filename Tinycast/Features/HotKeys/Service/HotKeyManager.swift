@@ -248,7 +248,8 @@ final class HotKeyManager {
     func conflictOwner(of binding: HotKeyBinding, excluding action: HotKeyAction) -> String? {
         for candidate in candidateActions where candidate != action {
             guard let other = self.binding(for: candidate) else { continue }
-            let holdsModifier = dictationHoldToTalk
+            let holdsModifier =
+                dictationHoldToTalk
                 && (action == .dictation && binding.holdKey != nil
                     || candidate == .dictation && other.holdKey != nil)
             if binding.conflicts(with: other, holdsModifier: holdsModifier) {

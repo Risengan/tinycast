@@ -167,7 +167,8 @@ final class ShortcutCaptureSession {
         case .released(let key, let doubleTap, let held):
             cancelModifierCommit()
             if doubleTap || held {
-                commit(doubleTap ? key.doubleBinding : key.singleBinding,
+                commit(
+                    doubleTap ? key.doubleBinding : key.singleBinding,
                     action: action, hotKeys: hotKeys)
                 return
             }

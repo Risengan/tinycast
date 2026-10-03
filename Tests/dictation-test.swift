@@ -16,21 +16,37 @@ struct DictationTest {
         check(DictationTextFormatter.format("World", context: Context(before: "Hello", after: "")), " world")
         check(DictationTextFormatter.format("world", context: Context(before: "Hello.", after: "")), " World")
         check(DictationTextFormatter.format("hello", context: Context(before: "Wait. ", after: "")), "Hello")
-        check(DictationTextFormatter.format("hello", context: Context(before: "Wait\n  ", after: "")), "Hello")
-        check(DictationTextFormatter.format("World", context: Context(before: "Hello ", after: "again")), "world ")
+        check(
+            DictationTextFormatter.format("hello", context: Context(before: "Wait\n  ", after: "")), "Hello")
+        check(
+            DictationTextFormatter.format("World", context: Context(before: "Hello ", after: "again")),
+            "world ")
         check(DictationTextFormatter.format("hello", context: Context(before: "(", after: ")")), "hello")
-        check(DictationTextFormatter.format("application", context: Context(before: "l’", after: "")), "application")
-        check(DictationTextFormatter.format("Tinycast", context: Context(before: "Use", after: "again"),
-            adaptCapitalization: false), " Tinycast ")
-        check(DictationTextFormatter.format("world", context: Context(before: "Hello.", after: ""),
-            adaptCapitalization: false), " world")
-        check(DictationTextFormatter.format("hello", context: Context(before: "", after: ""),
-            adaptCapitalization: false), "hello")
-        check(DictationTextFormatter.format("World.", context: Context(before: "Hello ", after: ")"),
-            adaptCapitalization: false), "World.")
+        check(
+            DictationTextFormatter.format("application", context: Context(before: "l’", after: "")),
+            "application")
+        check(
+            DictationTextFormatter.format(
+                "Tinycast", context: Context(before: "Use", after: "again"),
+                adaptCapitalization: false), " Tinycast ")
+        check(
+            DictationTextFormatter.format(
+                "world", context: Context(before: "Hello.", after: ""),
+                adaptCapitalization: false), " world")
+        check(
+            DictationTextFormatter.format(
+                "hello", context: Context(before: "", after: ""),
+                adaptCapitalization: false), "hello")
+        check(
+            DictationTextFormatter.format(
+                "World.", context: Context(before: "Hello ", after: ")"),
+                adaptCapitalization: false), "World.")
         let document = "prefix. Text to replace suffix"
-        check(DictationTextFormatter.format("world", context: Context(
-            before: document.prefix(7), after: document.suffix(6))), " World ")
+        check(
+            DictationTextFormatter.format(
+                "world",
+                context: Context(
+                    before: document.prefix(7), after: document.suffix(6))), " World ")
         check(DictationModel.redux.folderName, "parakeet-redux")
         check(DictationModel.ultra.folderName, "parakeet-ultra")
         check(DictationModel.redux.title, "Parakeet · Redux")
@@ -47,13 +63,15 @@ struct DictationTest {
         }
         for model in DictationModel.allCases {
             guard !model.components.isEmpty, model.revision.count == 40,
-                model.requiredFiles.isSuperset(of: model.components) else {
+                model.requiredFiles.isSuperset(of: model.components)
+            else {
                 fatalError("Model installation metadata is incomplete")
             }
             if let configuration = model.parakeetConfiguration {
                 guard model.family == .parakeet, configuration.blankToken == 8192,
                     configuration.encoderUsesGPU == (model == .redux),
-                    model.components.contains(configuration.joint + ".mlmodelc") else {
+                    model.components.contains(configuration.joint + ".mlmodelc")
+                else {
                     fatalError("Parakeet download and inference disagree")
                 }
             } else if !model.isQwen {

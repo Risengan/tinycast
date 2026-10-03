@@ -45,20 +45,22 @@ final class DictationModelStore {
     }
 
     func refreshInstalledModels() {
-        installedModels = Set(DictationModel.allCases.filter { model in
-            let directory = directory(for: model)
-            return model.requiredFiles.allSatisfy {
-                FileManager.default.fileExists(atPath: directory.appending(path: $0).path)
-            }
-        })
+        installedModels = Set(
+            DictationModel.allCases.filter { model in
+                let directory = directory(for: model)
+                return model.requiredFiles.allSatisfy {
+                    FileManager.default.fileExists(atPath: directory.appending(path: $0).path)
+                }
+            })
     }
 
     func installedSize(_ model: DictationModel) async -> Int64? {
         guard isInstalled(model) else { return nil }
         let directory = directory(for: model)
         let task = Task.detached(priority: .utility) { () -> Int64? in
-            guard let files = FileManager.default.enumerator(
-                at: directory, includingPropertiesForKeys: [.isRegularFileKey, .fileSizeKey])
+            guard
+                let files = FileManager.default.enumerator(
+                    at: directory, includingPropertiesForKeys: [.isRegularFileKey, .fileSizeKey])
             else { return nil }
             var size: Int64 = 0
             while let url = files.nextObject() as? URL {
@@ -71,7 +73,11 @@ final class DictationModelStore {
             }
             return size
         }
-        return await withTaskCancellationHandler { await task.value } onCancel: { task.cancel() }
+        return await withTaskCancellationHandler {
+            await task.value
+        } onCancel: {
+            task.cancel()
+        }
     }
 
     func download(_ model: DictationModel) async throws {
@@ -82,7 +88,8 @@ final class DictationModelStore {
         downloadID = id
         let destination = directory(for: model)
         let task = Task.detached(priority: .utility) { [weak self] in
-            try await DictationModelDownloader.download(model, destination: destination) { [weak self] received, total in
+            try await DictationModelDownloader.download(model, destination: destination) {
+                [weak self] received, total in
                 Task { @MainActor [weak self] in
                     guard let self, self.downloadID == id else { return }
                     self.downloadProgress = (max(self.downloadProgress?.received ?? 0, received), total)
@@ -91,7 +98,11 @@ final class DictationModelStore {
         }
         downloadTask = task
         defer { downloading = nil; downloadTask = nil; downloadID = nil; downloadProgress = nil }
-        try await withTaskCancellationHandler { try await task.value } onCancel: { task.cancel() }
+        try await withTaskCancellationHandler {
+            try await task.value
+        } onCancel: {
+            task.cancel()
+        }
         installedModels.insert(model)
     }
 
@@ -129,7 +140,8 @@ final class DictationModelStore {
             try Task.checkCancellation()
             let worker = try self.worker ?? makeWorker()
             self.worker = worker
-            let request = DictationWire.Request(id: UUID(), model: model, directory: directory(for: model),
+            let request = DictationWire.Request(
+                id: UUID(), model: model, directory: directory(for: model),
                 sampleCount: samples.count, language: model.isQwen ? language : nil)
             let text = try await worker.transcribe(samples, request: request) { [weak self] in
                 guard let self, self.worker === worker, self.transcribing else { return }

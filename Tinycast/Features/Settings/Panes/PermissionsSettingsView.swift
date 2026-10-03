@@ -98,9 +98,10 @@ struct PermissionsSettingsView: View {
                                 Permissions.openMicrophoneSettings()
                             }
                         }
-                        .help(microphoneAccess == .notDetermined
-                            ? "Asks macOS for microphone access."
-                            : "Opens Privacy & Security › Microphone.")
+                        .help(
+                            microphoneAccess == .notDetermined
+                                ? "Asks macOS for microphone access."
+                                : "Opens Privacy & Security › Microphone.")
                     }
                 } label: {
                     HStack(spacing: Theme.Spacing.lg) {

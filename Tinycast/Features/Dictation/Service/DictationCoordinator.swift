@@ -162,12 +162,14 @@ final class DictationCoordinator {
                 return
             }
             do {
-                let transcript = try await models.transcribe(samples, model: model,
+                let transcript = try await models.transcribe(
+                    samples, model: model,
                     language: language)
                 guard token == current else { return }
                 let destination = settings.dictationDestination
                 let context = destination.pastes ? DictationInsertionContext.read(in: target) : nil
-                let text = DictationTextFormatter.format(transcript, context: context,
+                let text = DictationTextFormatter.format(
+                    transcript, context: context,
                     adaptCapitalization: settings.dictationAdaptsCapitalization)
                 let target = self.target
                 reset(cancelTranscription: false)
@@ -178,7 +180,8 @@ final class DictationCoordinator {
                         keywordLength: 0, automaticGeneration: nil,
                         onDelivered: {
                             if destination.copies { Paster.copyPlainText(text) }
-                        }, onFailed: { [showMessage] in
+                        },
+                        onFailed: { [showMessage] in
                             if destination.copies { Paster.copyPlainText(text) }
                             showMessage("Couldn't paste dictation into this app", .danger)
                         })

@@ -15,17 +15,23 @@ final class ParakeetRecognizer {
             throw DictationInferenceError.incompatibleModel
         }
         preprocessor = try DictationTensor.load("Preprocessor", at: directory, units: .cpuOnly)
-        encoder = try DictationTensor.load("Encoder", at: directory,
+        encoder = try DictationTensor.load(
+            "Encoder", at: directory,
             units: configuration.encoderUsesGPU ? .cpuAndGPU : .cpuAndNeuralEngine)
         decoder = try DictationTensor.load("Decoder", at: directory, units: .cpuAndNeuralEngine)
-        joint = try DictationTensor.load(configuration.joint,
+        joint = try DictationTensor.load(
+            configuration.joint,
             at: directory, units: .cpuAndNeuralEngine)
-        let pieces = try JSONDecoder().decode([String: String].self,
+        let pieces = try JSONDecoder().decode(
+            [String: String].self,
             from: Data(contentsOf: directory.appendingPathComponent("parakeet_vocab.json")))
-        vocabulary = Dictionary(uniqueKeysWithValues: try pieces.map { key, value in
-            guard let id = Int(key), String(id) == key else { throw DictationInferenceError.incompatibleModel }
-            return (id, value)
-        })
+        vocabulary = Dictionary(
+            uniqueKeysWithValues: try pieces.map { key, value in
+                guard let id = Int(key), String(id) == key else {
+                    throw DictationInferenceError.incompatibleModel
+                }
+                return (id, value)
+            })
         blank = configuration.blankToken
     }
 
@@ -46,24 +52,35 @@ final class ParakeetRecognizer {
         audio.withUnsafeMutableBufferPointer(ofType: Float.self) { buffer, _ in
             for (index, sample) in samples.enumerated() { buffer[index] = sample }
         }
-        let mel = try DictationTensor.predict(preprocessor, ["audio_signal": audio,
-            "audio_length": DictationTensor.integer(samples.count)])
-        let encoded = try DictationTensor.predict(encoder, [
-            "mel": DictationTensor.array("mel", from: mel),
-            "mel_length": DictationTensor.array("mel_length", from: mel)])
+        let mel = try DictationTensor.predict(
+            preprocessor,
+            [
+                "audio_signal": audio,
+                "audio_length": DictationTensor.integer(samples.count)
+            ])
+        let encoded = try DictationTensor.predict(
+            encoder,
+            [
+                "mel": DictationTensor.array("mel", from: mel),
+                "mel_length": DictationTensor.array("mel_length", from: mel)
+            ])
         let features = try DictationTensor.array("encoder", from: encoded)
         let length = try DictationTensor.array("encoder_length", from: encoded)[0].intValue
         guard features.shape.count == 3, features.shape[1].intValue == 1024,
-            length > 0, length <= features.shape[2].intValue else {
+            length > 0, length <= features.shape[2].intValue
+        else {
             throw DictationInferenceError.incompatibleModel
         }
         let vectors = MLShapedArray<Float>(converting: features)
         var hidden = try DictationTensor.zeros([2, 1, 640])
         var cell = try DictationTensor.zeros([2, 1, 640])
         func advance(_ token: Int) throws -> MLMultiArray {
-            let prediction = try DictationTensor.predict(decoder, [
-                "targets": DictationTensor.integer(token, shape: [1, 1]),
-                "target_length": DictationTensor.integer(1), "h_in": hidden, "c_in": cell])
+            let prediction = try DictationTensor.predict(
+                decoder,
+                [
+                    "targets": DictationTensor.integer(token, shape: [1, 1]),
+                    "target_length": DictationTensor.integer(1), "h_in": hidden, "c_in": cell
+                ])
             hidden = try DictationTensor.array("h_out", from: prediction)
             cell = try DictationTensor.array("c_out", from: prediction)
             return try DictationTensor.array("decoder", from: prediction)
@@ -76,10 +93,13 @@ final class ParakeetRecognizer {
         while time < length {
             vectors.withUnsafeShapedBufferPointer { source, _, strides in
                 frame.withUnsafeMutableBufferPointer(ofType: Float.self) { target, _ in
-                    for channel in 0..<1024 { target[channel] = source[channel * strides[1] + time * strides[2]] }
+                    for channel in 0..<1024 {
+                        target[channel] = source[channel * strides[1] + time * strides[2]]
+                    }
                 }
             }
-            let decision = try DictationTensor.predict(joint, ["encoder_step": frame, "decoder_step": projection])
+            let decision = try DictationTensor.predict(
+                joint, ["encoder_step": frame, "decoder_step": projection])
             let token = try DictationTensor.array("token_id", from: decision)[0].intValue
             let duration = try DictationTensor.array("duration", from: decision)[0].intValue
             guard (0...blank).contains(token), (0...4).contains(duration) else {

@@ -63,8 +63,9 @@ enum Permissions {
 
     @MainActor
     static func openMicrophoneSettings() {
-        guard let url = URL(
-            string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone")
+        guard
+            let url = URL(
+                string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone")
         else { return }
         NSWorkspace.shared.open(url)
     }

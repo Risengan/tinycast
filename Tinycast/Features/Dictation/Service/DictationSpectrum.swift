@@ -13,7 +13,8 @@ final class DictationSpectrum {
     private var outputImaginary = [Float](repeating: 0, count: sampleCount)
 
     init() throws {
-        transform = try vDSP.DiscreteFourierTransform(count: Self.sampleCount, direction: .forward,
+        transform = try vDSP.DiscreteFourierTransform(
+            count: Self.sampleCount, direction: .forward,
             transformType: .complexComplex, ofType: Float.self)
         window = (0..<Self.sampleCount).map {
             0.5 - 0.5 * cos(2 * .pi * Float($0) / Float(Self.sampleCount - 1))
@@ -29,7 +30,8 @@ final class DictationSpectrum {
         for index in real.indices {
             real[index] = index < recent.count ? recent[recent.startIndex + index] * window[index] : 0
         }
-        transform.transform(inputReal: real, inputImaginary: imaginary,
+        transform.transform(
+            inputReal: real, inputImaginary: imaginary,
             outputReal: &outputReal, outputImaginary: &outputImaginary)
         return bands.map { band in
             let energy = band.reduce(Float(0)) {

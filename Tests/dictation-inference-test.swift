@@ -29,18 +29,22 @@ struct DictationInferenceTest {
         var vocabulary = [String: Int]()
         var extra = 256
         for byte in 0...255 {
-            let literal = (33...126).contains(byte) || (161...172).contains(byte) || (174...255).contains(byte)
+            let literal =
+                (33...126).contains(byte) || (161...172).contains(byte) || (174...255).contains(byte)
             let scalar = Unicode.Scalar(literal ? byte : extra)!
             if !literal { extra += 1 }
             vocabulary[String(scalar)] = byte
         }
         vocabulary["ab"] = 256
         let prompts = ["ab", "Tinycast", "é 新 🍋", "two\nlines", "1, 2, 300"]
-        let tokenizer = try DictationTokenizer(vocabulary: JSONEncoder().encode(vocabulary),
+        let tokenizer = try DictationTokenizer(
+            vocabulary: JSONEncoder().encode(vocabulary),
             merges: "#version: 0.2\na b\n", prompts: prompts + ["ab"])
         guard try tokenizer.tokens(for: "ab") == [256] else { fatalError("BPE merge failed") }
         for text in prompts {
-            guard try tokenizer.decode(tokenizer.tokens(for: text)) == text else { fatalError("Tokenizer round trip failed") }
+            guard try tokenizer.decode(tokenizer.tokens(for: text)) == text else {
+                fatalError("Tokenizer round trip failed")
+            }
         }
         do {
             _ = try tokenizer.tokens(for: "not prepared")
@@ -51,12 +55,15 @@ struct DictationInferenceTest {
         let silence = try mel.features([Float](repeating: 0, count: 16_000)[...])
         guard silence.frames == 100, silence.values.allSatisfy({ $0 == -1.5 }),
             DictationMel.embeddingCount(frames: 3000) == 390,
-            DictationMel.embeddingCount(frames: 1500) == 195 else { fatalError("Mel shape or normalization failed") }
+            DictationMel.embeddingCount(frames: 1500) == 195
+        else { fatalError("Mel shape or normalization failed") }
         for (frequency, expected) in [(440.0, 18), (2500.0, 80)] {
             let samples = (0..<16_000).map { Float(sin(2 * .pi * frequency * Double($0) / 16_000)) }
             let spectrum = try mel.features(samples[...])
             let peak = (0..<128).max { spectrum.values[$0 * 100 + 10] < spectrum.values[$1 * 100 + 10] }!
-            guard abs(peak - expected) <= 1 else { fatalError("Fourier transform placed energy in the wrong band") }
+            guard abs(peak - expected) <= 1 else {
+                fatalError("Fourier transform placed energy in the wrong band")
+            }
         }
         let paddedAudio = (0..<11_111).map { Float(sin(Double($0) * 0.017)) }
         let padded = try mel.features(paddedAudio[...])
@@ -66,8 +73,10 @@ struct DictationInferenceTest {
         }
 
         let waveform = try DictationSpectrum()
-        guard waveform.levels(for: [Float](repeating: 0, count: 512)[...]) == [Float](repeating: 0, count: 21),
-            waveform.levels(for: [Float]()[...]).allSatisfy({ $0 == 0 }) else {
+        guard
+            waveform.levels(for: [Float](repeating: 0, count: 512)[...]) == [Float](repeating: 0, count: 21),
+            waveform.levels(for: [Float]()[...]).allSatisfy({ $0 == 0 })
+        else {
             fatalError("Silent audio moved the waveform")
         }
         for (frequency, expected) in [(440.0, 11), (2500.0, 18)] {
@@ -76,7 +85,8 @@ struct DictationInferenceTest {
             let peak = levels.indices.max { levels[$0] < levels[$1] }!
             guard levels.count == 21, abs(peak - expected) <= 1,
                 levels.allSatisfy({ $0.isFinite && (0...1).contains($0) }),
-                levels == waveform.levels(for: tone.suffix(512)) else {
+                levels == waveform.levels(for: tone.suffix(512))
+            else {
                 fatalError("Listening bands moved, saturated or retained old samples")
             }
         }
@@ -88,10 +98,13 @@ struct DictationInferenceTest {
             ranges.first.map({ (210_000..<218_000).contains($0.upperBound) }) == true,
             ranges.allSatisfy({ !$0.isEmpty && $0.count <= 240_000 }),
             zip(ranges, ranges.dropFirst()).allSatisfy({ $0.upperBound == $1.lowerBound }),
-            DictationAudioChunks.ranges(in: [], maximum: 240_000).isEmpty else {
+            DictationAudioChunks.ranges(in: [], maximum: 240_000).isEmpty
+        else {
             fatalError("Audio chunks lost, repeated or cut samples outside a pause")
         }
-        print("Dictation scores, tokenizer, Fourier transform, mel features, listening bands and audio chunks passed")
+        print(
+            "Dictation scores, tokenizer, Fourier transform, mel features, listening bands and audio chunks passed"
+        )
     }
 
     private static func referenceMel(_ samples: [Float], length: Int) throws -> [Float] {

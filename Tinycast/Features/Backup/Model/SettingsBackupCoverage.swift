@@ -75,7 +75,8 @@ enum SettingsBackupCoverage {
             "Microphone capture is an opt-in capability on this Mac; a backup must not enable it.",
         AppSettingsKey.dictationMode.rawValue: "Dictation preferences stay local until backup supports them.",
         AppSettingsKey.dictationModel.rawValue: "Downloaded models are local to this Mac.",
-        AppSettingsKey.dictationLanguage.rawValue: "Dictation preferences stay local until backup supports them.",
+        AppSettingsKey.dictationLanguage.rawValue:
+            "Dictation preferences stay local until backup supports them.",
         AppSettingsKey.dictationMicrophone.rawValue: "Names a microphone attached to this Mac.",
         AppSettingsKey.dictationDestination.rawValue:
             "An import must not change where dictated text is sent.",

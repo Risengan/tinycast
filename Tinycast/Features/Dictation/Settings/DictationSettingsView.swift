@@ -30,8 +30,10 @@ struct DictationSettingsView: View {
                                 .foregroundStyle(.secondary)
                         }
                         Spacer(minLength: Theme.Spacing.lg)
-                        Button(microphoneAccess == .notDetermined
-                            ? "Grant Access…" : "Open System Settings") {
+                        Button(
+                            microphoneAccess == .notDetermined
+                                ? "Grant Access…" : "Open System Settings"
+                        ) {
                             if microphoneAccess == .notDetermined {
                                 Task {
                                     _ = await Permissions.requestMicrophoneAccess()
@@ -52,7 +54,9 @@ struct DictationSettingsView: View {
                         ForEach(DictationMode.allCases) { mode in
                             Text(mode.title).tag(mode)
                         }
-                    } label: { SettingsRowTitle(.dictationCommands, "Shortcut behavior") }
+                    } label: {
+                        SettingsRowTitle(.dictationCommands, "Shortcut behavior")
+                    }
                     HStack {
                         SettingsRowTitle(.dictationCommands, "Shortcut")
                         Spacer()
@@ -60,10 +64,12 @@ struct DictationSettingsView: View {
                     }
                     if settings.dictationMode == .pushToTalk {
                         let issue = coordinator.holdShortcutIssue
-                        Text(issue ?? "Hold a key combination or a single modifier; release it to transcribe. "
-                            + "Double taps work in toggle mode.")
-                            .font(.caption)
-                            .foregroundStyle(issue == nil ? Color.secondary : Color.orange)
+                        Text(
+                            issue ?? "Hold a key combination or a single modifier; release it to transcribe. "
+                                + "Double taps work in toggle mode."
+                        )
+                        .font(.caption)
+                        .foregroundStyle(issue == nil ? Color.secondary : Color.orange)
                     }
                 } header: {
                     SettingsSectionHeader(.dictationCommands)
@@ -76,10 +82,13 @@ struct DictationSettingsView: View {
                         }
                     } label: {
                         SettingsRowTitle(.dictationModel, "Engine")
-                        Text(settings.dictationModel.family.summary + " · " + settings.dictationModel.coverage)
+                        Text(
+                            settings.dictationModel.family.summary + " · " + settings.dictationModel.coverage)
                     }
                     Picker(selection: $settings.dictationModel) {
-                        ForEach(DictationModel.allCases.filter { $0.family == settings.dictationModel.family }) { model in
+                        ForEach(
+                            DictationModel.allCases.filter { $0.family == settings.dictationModel.family }
+                        ) { model in
                             Text(model.variantTitle).tag(model)
                         }
                     } label: {
@@ -94,23 +103,31 @@ struct DictationSettingsView: View {
                             Button("Cancel") { coordinator.models.cancelDownload() }
                         } else if installed {
                             Button("Remove") { removeModel(settings.dictationModel) }
-                                .disabled(coordinator.models.transcribing || coordinator.models.removing != nil)
+                                .disabled(
+                                    coordinator.models.transcribing || coordinator.models.removing != nil)
                         } else {
                             Button("Download") { downloadModel(settings.dictationModel) }
-                                .disabled(coordinator.models.downloading != nil
-                                    || coordinator.models.removing == settings.dictationModel)
+                                .disabled(
+                                    coordinator.models.downloading != nil
+                                        || coordinator.models.removing == settings.dictationModel)
                         }
                     } label: {
-                        Text(downloading ? "Downloading…"
-                            : installed ? "Installed" : "Not installed")
+                        Text(
+                            downloading
+                                ? "Downloading…"
+                                : installed ? "Installed" : "Not installed")
                         VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
                             Text(modelDescription)
                             if downloading {
                                 if let progress = coordinator.models.downloadProgress, progress.total > 0 {
-                                    ProgressView(value: Double(progress.received), total: Double(progress.total))
-                                        .accessibilityLabel("Download progress")
-                                    Text("\(progress.received / 1_000_000) of \(progress.total / 1_000_000) MB")
-                                        .monospacedDigit()
+                                    ProgressView(
+                                        value: Double(progress.received), total: Double(progress.total)
+                                    )
+                                    .accessibilityLabel("Download progress")
+                                    Text(
+                                        "\(progress.received / 1_000_000) of \(progress.total / 1_000_000) MB"
+                                    )
+                                    .monospacedDigit()
                                 } else {
                                     ProgressView()
                                         .controlSize(.small)
@@ -125,7 +142,9 @@ struct DictationSettingsView: View {
                             ForEach(DictationLanguage.allCases) { language in
                                 Text(language.rawValue).tag(language.rawValue)
                             }
-                        } label: { SettingsRowTitle(.dictationModel, "Language") }
+                        } label: {
+                            SettingsRowTitle(.dictationModel, "Language")
+                        }
                     }
                 } header: {
                     SettingsSectionHeader(.dictationModel)
@@ -153,12 +172,16 @@ struct DictationSettingsView: View {
                         ForEach(microphones, id: \.uniqueID) { microphone in
                             Text(microphone.localizedName).tag(microphone.uniqueID)
                         }
-                    } label: { SettingsRowTitle(.dictationOutput, "Microphone") }
+                    } label: {
+                        SettingsRowTitle(.dictationOutput, "Microphone")
+                    }
                     Picker(selection: $settings.dictationDestination) {
                         ForEach(DictationDestination.allCases) { destination in
                             Text(destination.title).tag(destination)
                         }
-                    } label: { SettingsRowTitle(.dictationOutput, "When finished") }
+                    } label: {
+                        SettingsRowTitle(.dictationOutput, "When finished")
+                    }
                     Toggle(isOn: $settings.dictationAdaptsCapitalization) {
                         SettingsRowTitle(.dictationOutput, "Adapt capitalization")
                         Text("Match the first letter to the text before the cursor.")
@@ -166,7 +189,9 @@ struct DictationSettingsView: View {
                 } header: {
                     SettingsSectionHeader(.dictationOutput)
                 } footer: {
-                    Text("Press Return to finish dictating or Escape to cancel. Protected fields may refuse insertion.")
+                    Text(
+                        "Press Return to finish dictating or Escape to cancel. Protected fields may refuse insertion."
+                    )
                 }
 
             }
@@ -181,7 +206,9 @@ struct DictationSettingsView: View {
             if enabled { microphones = DictationCapture.microphones }
         }
         .task {
-            for await _ in NotificationCenter.default.notifications(named: NSApplication.didBecomeActiveNotification) {
+            for await _ in NotificationCenter.default.notifications(
+                named: NSApplication.didBecomeActiveNotification)
+            {
                 microphoneAccess = Permissions.microphoneAccess()
                 if settings.dictationEnabled { microphones = DictationCapture.microphones }
             }
@@ -207,15 +234,19 @@ struct DictationSettingsView: View {
     }
 
     private var familyBinding: Binding<DictationModel.Family> {
-        Binding(get: { settings.dictationModel.family }, set: {
-            settings.dictationModel = $0 == .parakeet ? .redux : .qwenSmall
-        })
+        Binding(
+            get: { settings.dictationModel.family },
+            set: {
+                settings.dictationModel = $0 == .parakeet ? .redux : .qwenSmall
+            })
     }
 
     private var languageBinding: Binding<String> {
-        Binding(get: { settings.dictationLanguage ?? "" }, set: {
-            settings.dictationLanguage = $0.isEmpty ? nil : $0
-        })
+        Binding(
+            get: { settings.dictationLanguage ?? "" },
+            set: {
+                settings.dictationLanguage = $0.isEmpty ? nil : $0
+            })
     }
 
     private var modelDescription: String {

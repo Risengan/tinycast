@@ -332,7 +332,9 @@ final class AppSettings {
     }
 
     var dictationAdaptsCapitalization: Bool {
-        didSet { defaults.set(dictationAdaptsCapitalization, forKey: Key.dictationAdaptsCapitalization.rawValue) }
+        didSet {
+            defaults.set(dictationAdaptsCapitalization, forKey: Key.dictationAdaptsCapitalization.rawValue)
+        }
     }
 
     var dictationIdleRelease: DictationIdleRelease {
@@ -690,19 +692,25 @@ final class AppSettings {
             defaults.stringArray(forKey: Key.fileSearchIgnorePatterns.rawValue) ?? []
         notesEnabled = defaults.bool(forKey: Key.notesEnabled.rawValue)
         dictationEnabled = defaults.bool(forKey: Key.dictationEnabled.rawValue)
-        dictationMode = defaults.string(forKey: Key.dictationMode.rawValue)
+        dictationMode =
+            defaults.string(forKey: Key.dictationMode.rawValue)
             .flatMap(DictationMode.init) ?? .toggle
-        dictationModel = defaults.string(forKey: Key.dictationModel.rawValue)
+        dictationModel =
+            defaults.string(forKey: Key.dictationModel.rawValue)
             .flatMap(DictationModel.init) ?? .redux
         dictationMicrophone = defaults.string(forKey: Key.dictationMicrophone.rawValue)
-        dictationDestination = defaults.string(forKey: Key.dictationDestination.rawValue)
+        dictationDestination =
+            defaults.string(forKey: Key.dictationDestination.rawValue)
             .flatMap(DictationDestination.init) ?? .paste
-        dictationAdaptsCapitalization = defaults.object(forKey: Key.dictationAdaptsCapitalization.rawValue) == nil
+        dictationAdaptsCapitalization =
+            defaults.object(forKey: Key.dictationAdaptsCapitalization.rawValue) == nil
             || defaults.bool(forKey: Key.dictationAdaptsCapitalization.rawValue)
-        dictationIdleRelease = defaults.object(forKey: Key.dictationIdleRelease.rawValue)
+        dictationIdleRelease =
+            defaults.object(forKey: Key.dictationIdleRelease.rawValue)
             .flatMap { $0 as? Int }
             .flatMap(DictationIdleRelease.init(rawValue:)) ?? .oneMinute
-        dictationLanguage = defaults.string(forKey: Key.dictationLanguage.rawValue)
+        dictationLanguage =
+            defaults.string(forKey: Key.dictationLanguage.rawValue)
             .flatMap(DictationLanguage.init(rawValue:))?.rawValue
         notesRendersMarkdown =
             defaults.object(forKey: Key.notesRendersMarkdown.rawValue) == nil

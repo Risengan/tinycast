@@ -29,7 +29,8 @@ final class DictationWorker: Sendable {
     }
 
     static var executable: URL {
-        Bundle.main.bundleURL.appending(path: "Contents/Helpers/\(executableName).app/Contents/MacOS/\(executableName)")
+        Bundle.main.bundleURL.appending(
+            path: "Contents/Helpers/\(executableName).app/Contents/MacOS/\(executableName)")
     }
 
     private static var executableName: String {
@@ -45,7 +46,8 @@ final class DictationWorker: Sendable {
         onReady: @escaping @MainActor @Sendable () -> Void
     ) async throws -> String {
         try Task.checkCancellation()
-        guard samples.count == request.sampleCount, (1...DictationWire.maximumSamples).contains(samples.count) else {
+        guard samples.count == request.sampleCount, (1...DictationWire.maximumSamples).contains(samples.count)
+        else {
             throw DictationWire.Failure.unavailable
         }
         let timeout = 60 + samples.count / DictationWire.sampleRate * 2
@@ -61,14 +63,20 @@ final class DictationWorker: Sendable {
                 queue.async {
                     do {
                         try DictationWire.write(request, to: self.input)
-                        guard let ready = try DictationWire.read(DictationWire.Response.self, from: self.output),
-                            ready.id == request.id, ready.status == .ready else {
+                        guard
+                            let ready = try DictationWire.read(
+                                DictationWire.Response.self, from: self.output),
+                            ready.id == request.id, ready.status == .ready
+                        else {
                             throw DictationWire.Failure.unavailable
                         }
                         continuation.yield(ready)
                         try samples.withUnsafeBytes { try self.input.write(contentsOf: $0) }
-                        guard let result = try DictationWire.read(DictationWire.Response.self, from: self.output),
-                            result.id == request.id, result.status == .result else {
+                        guard
+                            let result = try DictationWire.read(
+                                DictationWire.Response.self, from: self.output),
+                            result.id == request.id, result.status == .result
+                        else {
                             throw DictationWire.Failure.unavailable
                         }
                         continuation.yield(result)

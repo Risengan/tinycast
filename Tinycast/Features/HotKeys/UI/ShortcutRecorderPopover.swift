@@ -23,10 +23,13 @@ struct ShortcutRecorderPopover: View {
         var tint: Color?
         var prefix: String?
 
-        @MainActor static func binding(_ binding: HotKeyBinding, label: String, tint: Color? = nil)
+        @MainActor static func binding(
+            _ binding: HotKeyBinding, label: String, tint: Color? = nil
+        )
             -> Self
         {
-            Self(caps: binding.recorderKeycaps, label: label, tint: tint,
+            Self(
+                caps: binding.recorderKeycaps, label: label, tint: tint,
                 prefix: binding.recorderPrefix)
         }
     }

@@ -664,14 +664,17 @@ final class AppCore {
             })
         track({ _ = $0.notesEnabled }, reproject: { $0.notesCoordinator.applyEnabled() })
         track({ _ = $0.aiEnabled }, reproject: { $0.aiChatCoordinator.applyEnabled() })
-        track({ _ = $0.dictationIdleRelease }, reproject: {
-            $0.dictationModels.setIdleRelease($0.settings.dictationIdleRelease)
-        })
+        track(
+            { _ = $0.dictationIdleRelease },
+            reproject: {
+                $0.dictationModels.setIdleRelease($0.settings.dictationIdleRelease)
+            })
         track(
             {
                 _ = $0.dictationEnabled
                 _ = $0.dictationMode
-            }, reproject: {
+            },
+            reproject: {
                 $0.hotKeys.dictationHoldToTalk = $0.settings.dictationMode == .pushToTalk
                 $0.hotKeys.dictationEnabled = $0.settings.dictationEnabled
             })

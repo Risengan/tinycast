@@ -71,8 +71,10 @@ enum DictationModel: String, CaseIterable, Identifiable, Codable, Sendable {
     var components: Set<String> {
         if isQwen { return ["encoder.mlmodelc", "decoder.mlmodelc", "embedding.mlmodelc", "config.json"] }
         guard let configuration = parakeetConfiguration else { return [] }
-        return ["Preprocessor.mlmodelc", "Encoder.mlmodelc", "Decoder.mlmodelc",
-            configuration.joint + ".mlmodelc", "parakeet_vocab.json"]
+        return [
+            "Preprocessor.mlmodelc", "Encoder.mlmodelc", "Decoder.mlmodelc",
+            configuration.joint + ".mlmodelc", "parakeet_vocab.json"
+        ]
     }
 
     var requiredFiles: Set<String> { components.union(isQwen ? ["vocab.json", "merges.txt"] : []) }

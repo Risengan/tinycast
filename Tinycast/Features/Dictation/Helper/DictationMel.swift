@@ -10,7 +10,8 @@ final class DictationMel {
 
     init() throws {
         // Accelerate supports 80-point transforms, but not the 400-point Whisper window.
-        transform = try vDSP.DiscreteFourierTransform(count: 80, direction: .forward,
+        transform = try vDSP.DiscreteFourierTransform(
+            count: 80, direction: .forward,
             transformType: .complexComplex, ofType: Float.self)
         window = (0..<400).map { 0.5 - 0.5 * cos(2 * .pi * Float($0) / 400) }
         rotations = (0..<5).flatMap { residue in
@@ -55,20 +56,25 @@ final class DictationMel {
                 for index in 0..<80 {
                     let windowIndex = index * 5 + residue
                     let position = abs(frame * 160 + windowIndex - 200)
-                    real[index] = position < samples.count
+                    real[index] =
+                        position < samples.count
                         ? samples[samples.startIndex + position] * window[windowIndex] : 0
                 }
-                transform.transform(inputReal: real, inputImaginary: imaginary,
+                transform.transform(
+                    inputReal: real, inputImaginary: imaginary,
                     outputReal: &outputReal, outputImaginary: &outputImaginary)
                 for bin in 0..<201 {
                     let rotation = rotations[residue * 201 + bin]
                     let index = bin % 80
-                    spectrumReal[bin] += outputReal[index] * rotation.real - outputImaginary[index] * rotation.imaginary
-                    spectrumImaginary[bin] += outputImaginary[index] * rotation.real + outputReal[index] * rotation.imaginary
+                    spectrumReal[bin] +=
+                        outputReal[index] * rotation.real - outputImaginary[index] * rotation.imaginary
+                    spectrumImaginary[bin] +=
+                        outputImaginary[index] * rotation.real + outputReal[index] * rotation.imaginary
                 }
             }
             for bin in 0..<201 {
-                powers[bin * length + frame] = spectrumReal[bin] * spectrumReal[bin]
+                powers[bin * length + frame] =
+                    spectrumReal[bin] * spectrumReal[bin]
                     + spectrumImaginary[bin] * spectrumImaginary[bin]
             }
         }

@@ -26,9 +26,11 @@ enum DictationModelDownloader {
 
         let fileManager = FileManager.default
         let root = destination.deletingLastPathComponent()
-        try fileManager.createDirectory(at: root,
+        try fileManager.createDirectory(
+            at: root,
             withIntermediateDirectories: true)
-        let descriptor = open(root.appending(path: ".download-lock").path,
+        let descriptor = open(
+            root.appending(path: ".download-lock").path,
             O_CREAT | O_RDWR | O_CLOEXEC | O_NOFOLLOW, S_IRUSR | S_IWUSR)
         guard descriptor >= 0 else { throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO) }
         defer { close(descriptor) }
@@ -37,8 +39,10 @@ enum DictationModelDownloader {
             throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO)
         }
         // Keep the lock file's inode stable so every instance locks the same resource.
-        for directory in try fileManager.contentsOfDirectory(at: root,
-            includingPropertiesForKeys: [.isDirectoryKey, .isSymbolicLinkKey]) {
+        for directory in try fileManager.contentsOfDirectory(
+            at: root,
+            includingPropertiesForKeys: [.isDirectoryKey, .isSymbolicLinkKey])
+        {
             let name = directory.lastPathComponent
             guard name.hasPrefix("."), UUID(uuidString: String(name.dropFirst())) != nil else { continue }
             let values = try directory.resourceValues(forKeys: [.isDirectoryKey, .isSymbolicLinkKey])
@@ -48,11 +52,14 @@ enum DictationModelDownloader {
         let staging = root.appendingPathComponent(".\(UUID().uuidString)")
         try fileManager.createDirectory(at: staging, withIntermediateDirectories: true)
         defer { try? fileManager.removeItem(at: staging) }
-        var files = try await manifest(repository: model.repository, revision: model.revision,
+        var files = try await manifest(
+            repository: model.repository, revision: model.revision,
             components: model.components, baseURL: baseURL, using: session)
         if model.isQwen {
-            files += try await manifest(repository: "Qwen/Qwen3-ASR-0.6B",
-                revision: "5eb144179a02acc5e5ba31e748d22b0cf3e303b0", components: ["vocab.json", "merges.txt"],
+            files += try await manifest(
+                repository: "Qwen/Qwen3-ASR-0.6B",
+                revision: "5eb144179a02acc5e5ba31e748d22b0cf3e303b0",
+                components: ["vocab.json", "merges.txt"],
                 baseURL: baseURL, using: session)
         }
         var total: Int64 = 0
@@ -88,7 +95,8 @@ enum DictationModelDownloader {
             guard actual.map(Int64.init) == file.size else { throw URLError(.badServerResponse) }
             if let checksum = file.lfs?.oid { try verify(temporary, checksum: checksum) }
             let target = staging.appending(path: file.path)
-            try fileManager.createDirectory(at: target.deletingLastPathComponent(),
+            try fileManager.createDirectory(
+                at: target.deletingLastPathComponent(),
                 withIntermediateDirectories: true)
             try fileManager.moveItem(at: temporary, to: target)
             received += file.size
@@ -106,16 +114,20 @@ enum DictationModelDownloader {
             .appending(queryItems: [URLQueryItem(name: "recursive", value: "true")])
         let files = try JSONDecoder().decode([File].self, from: try await data(from: tree, using: session))
             .filter { file in
-                file.type == "file" && components.contains(file.path.split(separator: "/").first.map(String.init) ?? "")
+                file.type == "file"
+                    && components.contains(file.path.split(separator: "/").first.map(String.init) ?? "")
             }
-        guard components.allSatisfy({ component in
-            files.contains { $0.path == component || $0.path.hasPrefix(component + "/") }
-        }) else { throw URLError(.cannotParseResponse) }
+        guard
+            components.allSatisfy({ component in
+                files.contains { $0.path == component || $0.path.hasPrefix(component + "/") }
+            })
+        else { throw URLError(.cannotParseResponse) }
 
         return try files.map { file in
             let path = file.path.split(separator: "/")
             guard file.size >= 0, !path.isEmpty, file.path == path.joined(separator: "/"),
-                path.allSatisfy({ $0 != "." && $0 != ".." }) else {
+                path.allSatisfy({ $0 != "." && $0 != ".." })
+            else {
                 throw URLError(.cannotParseResponse)
             }
             return (file, baseURL.appending(path: "\(repository)/resolve/\(revision)/\(file.path)"))

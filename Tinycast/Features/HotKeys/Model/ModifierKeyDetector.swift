@@ -22,7 +22,8 @@ struct ModifierKeyDetector: Sendable {
             guard let press else { return nil }
             self.press = nil
             let isHeld = now - press.startedAt > DoubleTapDetector.maxHold
-            let isDouble = !isHeld && pendingTap?.key == press.key
+            let isDouble =
+                !isHeld && pendingTap?.key == press.key
                 && press.startedAt - (pendingTap?.releasedAt ?? 0) <= DoubleTapDetector.maxGap
             pendingTap = isHeld || isDouble ? nil : (press.key, now)
             return .released(press.key, doubleTap: isDouble, held: isHeld)

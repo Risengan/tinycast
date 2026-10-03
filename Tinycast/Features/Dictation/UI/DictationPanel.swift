@@ -17,7 +17,9 @@ private struct DictationWaveform: View {
     var body: some View {
         HStack(alignment: .center, spacing: Theme.Spacing.dictationWaveGap) {
             ForEach(levels.indices, id: \.self) { index in
-                let emphasis = processing ? Double(levels[index])
+                let emphasis =
+                    processing
+                    ? Double(levels[index])
                     : min(1, Double(min(index, levels.count - 1 - index)) / 3)
                 Capsule()
                     .fill(Theme.Colors.textPrimary.opacity(0.4 + 0.6 * emphasis))
@@ -36,12 +38,14 @@ private struct DictationProcessingWave: View {
 
     var body: some View {
         TimelineView(.animation(minimumInterval: 1.0 / 30, paused: reduceMotion)) { timeline in
-            let progress = timeline.date.timeIntervalSince(startedAt)
+            let progress =
+                timeline.date.timeIntervalSince(startedAt)
                 .truncatingRemainder(dividingBy: 1.2) / 1.2
             let center = (reduceMotion ? 0.5 : progress) * 28 - 4
-            DictationWaveform(levels: (0..<DictationSpectrum.barCount).map { index in
-                Float(max(0, 1 - abs(Double(index) - center) / 4))
-            }, processing: true)
+            DictationWaveform(
+                levels: (0..<DictationSpectrum.barCount).map { index in
+                    Float(max(0, 1 - abs(Double(index) - center) / 4))
+                }, processing: true)
         }
     }
 }
@@ -52,12 +56,14 @@ private struct DictationPanelView: View {
     var body: some View {
         Group {
             if state.phase == .listening {
-                DictationWaveform(levels: state.levels.enumerated().map { index, level in
-                    let edge = min(1, Float(min(index, state.levels.count - 1 - index)) / 4)
-                    let taper = edge * edge * (3 - 2 * edge)
-                    return level * (0.2 + 0.8 * taper)
-                }, processing: false)
-                    .accessibilityLabel("Dictation listening")
+                DictationWaveform(
+                    levels: state.levels.enumerated().map { index, level in
+                        let edge = min(1, Float(min(index, state.levels.count - 1 - index)) / 4)
+                        let taper = edge * edge * (3 - 2 * edge)
+                        return level * (0.2 + 0.8 * taper)
+                    }, processing: false
+                )
+                .accessibilityLabel("Dictation listening")
             } else {
                 DictationProcessingWave()
                     .accessibilityLabel("Transcribing dictation")
@@ -112,14 +118,16 @@ final class DictationPanelController {
     func show() {
         let screen = NSScreen.main ?? NSScreen.screens.first
         guard let frame = screen?.visibleFrame else { return }
-        let panel = panel ?? DictationPanel(content: NSHostingView(rootView: DictationPanelView(state: state)))
+        let panel =
+            panel ?? DictationPanel(content: NSHostingView(rootView: DictationPanelView(state: state)))
         panel.onAccept = onAccept
         panel.onCancel = onCancel
         self.panel = panel
         let size = Theme.Size.dictationPanel
-        panel.setFrameOrigin(NSPoint(
-            x: frame.midX - size.width / 2,
-            y: frame.minY + frame.height * 0.1 - size.height / 2))
+        panel.setFrameOrigin(
+            NSPoint(
+                x: frame.midX - size.width / 2,
+                y: frame.minY + frame.height * 0.1 - size.height / 2))
         state.phase = .listening
         state.levels = [Float](repeating: 0, count: DictationSpectrum.barCount)
         panel.makeKeyAndOrderFront(nil)

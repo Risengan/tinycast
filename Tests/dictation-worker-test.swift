@@ -10,7 +10,8 @@ struct DictationWorkerTest {
     static func main() async throws {
         if CommandLine.arguments.contains("--competing-download") {
             do {
-                try await DictationModelDownloader.download(.redux,
+                try await DictationModelDownloader.download(
+                    .redux,
                     destination: URL(fileURLWithPath: CommandLine.arguments.last!),
                     baseURL: URL(string: "https://dictation.test/")!, protocolClasses: [DownloadFixture.self])
                 fatalError("Another process acquired the same download root")
@@ -22,7 +23,8 @@ struct DictationWorkerTest {
         let readiness = Readiness()
         for model in DictationModel.allCases {
             let samples = [Float](repeating: 0.125, count: 16_000)
-            let request = DictationWire.Request(id: UUID(), model: model,
+            let request = DictationWire.Request(
+                id: UUID(), model: model,
                 directory: URL(fileURLWithPath: "/tmp/models"), sampleCount: samples.count,
                 language: nil)
             let text = try await worker.transcribe(samples, request: request) { readiness.count += 1 }
@@ -35,7 +37,8 @@ struct DictationWorkerTest {
         for behavior in ["crash", "wait"] {
             let worker = try DictationWorker(executable: executable, arguments: ["--fixture", behavior])
             let samples = [Float](repeating: 0, count: 1_000_000)
-            let request = DictationWire.Request(id: UUID(), model: .ultra,
+            let request = DictationWire.Request(
+                id: UUID(), model: .ultra,
                 directory: URL(fileURLWithPath: "/tmp/models"), sampleCount: samples.count,
                 language: nil)
             let ready = AsyncStream<Void>.makeStream()
@@ -65,7 +68,8 @@ struct DictationWorkerTest {
             return try DictationWorker(executable: executable, arguments: ["--fixture"])
         }
         guard store.installedModels.count == DictationModel.allCases.count,
-            try await store.installedSize(.redux) == Int64(DictationModel.redux.requiredFiles.count) else {
+            try await store.installedSize(.redux) == Int64(DictationModel.redux.requiredFiles.count)
+        else {
             fatalError("Installed model metadata is incorrect")
         }
         let cancelled = Task { try await store.transcribe([0], model: .redux) }
@@ -86,7 +90,9 @@ struct DictationWorkerTest {
         guard readiness.workers == 2 else { fatalError("Worker reuse or model-switch cleanup failed") }
         try await store.delete(.ultra)
         guard store.loadedModel == nil, store.removing == nil, !store.isInstalled(.ultra),
-            !FileManager.default.fileExists(atPath: root.appending(path: DictationModel.ultra.folderName).path) else {
+            !FileManager.default.fileExists(
+                atPath: root.appending(path: DictationModel.ultra.folderName).path)
+        else {
             fatalError("Model removal retained files or a loaded helper")
         }
         await store.stop()
@@ -101,10 +107,14 @@ struct DictationWorkerTest {
         let stale = root.appending(path: ".\(UUID())")
         try manager.createDirectory(at: stale, withIntermediateDirectories: true)
         try Data([0]).write(to: stale.appending(path: "weights.bin"))
-        let preserved = [".keep", ".\(UUID())", "installed-model", ".\(UUID())", ".download-lock", "other-channel"]
+        let preserved = [
+            ".keep", ".\(UUID())", "installed-model", ".\(UUID())", ".download-lock", "other-channel"
+        ]
         for name in preserved.prefix(2) { try Data([1]).write(to: root.appending(path: name)) }
-        try manager.createDirectory(at: root.appending(path: "installed-model"), withIntermediateDirectories: false)
-        try manager.createSymbolicLink(at: root.appending(path: preserved[3]),
+        try manager.createDirectory(
+            at: root.appending(path: "installed-model"), withIntermediateDirectories: false)
+        try manager.createSymbolicLink(
+            at: root.appending(path: preserved[3]),
             withDestinationURL: root.appending(path: "installed-model"))
         let events = Mutex<[(received: Int64, total: Int64)]>([])
         let destination = root.appending(path: DictationModel.redux.folderName)
@@ -114,14 +124,16 @@ struct DictationWorkerTest {
             $0.onFile = { started.continuation.yield(()) }
         }
         let cancelled = Task.detached {
-            try await DictationModelDownloader.download(.redux, destination: destination,
+            try await DictationModelDownloader.download(
+                .redux, destination: destination,
                 baseURL: base, protocolClasses: [DownloadFixture.self])
         }
         var iterator = started.stream.makeAsyncIterator()
         _ = await iterator.next()
         let active = try manager.contentsOfDirectory(atPath: root.path).sorted()
         do {
-            try await DictationModelDownloader.download(.qwenSmall,
+            try await DictationModelDownloader.download(
+                .qwenSmall,
                 destination: root.appending(path: DictationModel.qwenSmall.folderName),
                 baseURL: base, protocolClasses: [DownloadFixture.self])
             fatalError("Concurrent download acquired the same root")
@@ -139,7 +151,8 @@ struct DictationWorkerTest {
         }
         DownloadFixture.state.withLock { $0 = .init() }
         let other = root.appending(path: "other-channel/\(DictationModel.redux.folderName)")
-        try await DictationModelDownloader.download(.redux, destination: other,
+        try await DictationModelDownloader.download(
+            .redux, destination: other,
             baseURL: base, protocolClasses: [DownloadFixture.self])
         guard manager.fileExists(atPath: other.path) else {
             fatalError("An independent download root was blocked")
@@ -156,8 +169,10 @@ struct DictationWorkerTest {
         DownloadFixture.state.withLock { $0 = .init() }
         for model in models {
             events.withLock { $0.removeAll() }
-            try await DictationModelDownloader.download(model, destination: root.appending(path: model.folderName),
-                baseURL: base, protocolClasses: [DownloadFixture.self]) { received, total in
+            try await DictationModelDownloader.download(
+                model, destination: root.appending(path: model.folderName),
+                baseURL: base, protocolClasses: [DownloadFixture.self]
+            ) { received, total in
                 events.withLock { $0.append((received, total)) }
             }
             let progress = events.withLock { $0 }
@@ -165,13 +180,15 @@ struct DictationWorkerTest {
             guard progress.first?.received == 0, progress.last?.received == expected,
                 progress.allSatisfy({ $0.total == expected && $0.received <= expected }),
                 zip(progress, progress.dropFirst()).allSatisfy({ $0.received <= $1.received }),
-                progress.contains(where: { $0.received > 0 && $0.received < expected }) else {
+                progress.contains(where: { $0.received > 0 && $0.received < expected })
+            else {
                 fatalError("Combined download progress is incorrect")
             }
         }
         DownloadFixture.state.withLock { $0.corrupt = true }
         do {
-            try await DictationModelDownloader.download(.redux, destination: root.appending(path: "corrupt"),
+            try await DictationModelDownloader.download(
+                .redux, destination: root.appending(path: "corrupt"),
                 baseURL: base, protocolClasses: [DownloadFixture.self])
             fatalError("Invalid checksum installed a model")
         } catch let error as URLError where error.code == .badServerResponse {}
@@ -183,15 +200,18 @@ struct DictationWorkerTest {
 
     private static func fixture() throws {
         while let request = try DictationWire.read(DictationWire.Request.self, from: .standardInput) {
-            try DictationWire.write(DictationWire.Response(id: request.id, status: .ready), to: .standardOutput)
+            try DictationWire.write(
+                DictationWire.Response(id: request.id, status: .ready), to: .standardOutput)
             if CommandLine.arguments.contains("crash") { exit(1) }
             _ = try DictationWire.readExactly(request.sampleCount * 4, from: .standardInput)
             if CommandLine.arguments.contains("wait") {
                 _ = try DictationWire.readExactly(1, from: .standardInput)
                 return
             }
-            try DictationWire.write(DictationWire.Response(id: request.id, status: .result,
-                text: request.model.rawValue), to: .standardOutput)
+            try DictationWire.write(
+                DictationWire.Response(
+                    id: request.id, status: .result,
+                    text: request.model.rawValue), to: .standardOutput)
         }
     }
 }
@@ -219,8 +239,10 @@ private final class DownloadFixture: URLProtocol, @unchecked Sendable {
             let files = [DictationModel.redux, .qwenSmall].reduce(into: Set<String>()) {
                 $0.formUnion($1.requiredFiles)
             }.sorted().map { name in
-                ["path": name.hasSuffix(".mlmodelc") ? name + "/weights.bin" : name,
-                 "type": "file", "size": Self.content.count, "lfs": ["oid": checksum]] as [String: Any]
+                [
+                    "path": name.hasSuffix(".mlmodelc") ? name + "/weights.bin" : name,
+                    "type": "file", "size": Self.content.count, "lfs": ["oid": checksum]
+                ] as [String: Any]
             }
             guard let data = try? JSONSerialization.data(withJSONObject: files) else {
                 fatalError("Invalid download fixture manifest")

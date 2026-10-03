@@ -20,14 +20,17 @@ final class QwenRecognizer {
     init(directory: URL) throws {
         let json = JSONDecoder()
         json.keyDecodingStrategy = .convertFromSnakeCase
-        let configuration = try json.decode(Configuration.self,
+        let configuration = try json.decode(
+            Configuration.self,
             from: Data(contentsOf: directory.appendingPathComponent("config.json")))
         guard [1024, 2048].contains(configuration.hiddenSize), configuration.maxSeqLength == 1024,
-            configuration.vocabSize == 151936 else { throw DictationInferenceError.incompatibleModel }
+            configuration.vocabSize == 151936
+        else { throw DictationInferenceError.incompatibleModel }
         width = configuration.hiddenSize
         capacity = configuration.maxSeqLength
         vocabularySize = configuration.vocabSize
-        tokenizer = try DictationTokenizer(vocabulary: Data(contentsOf: directory.appendingPathComponent("vocab.json")),
+        tokenizer = try DictationTokenizer(
+            vocabulary: Data(contentsOf: directory.appendingPathComponent("vocab.json")),
             merges: String(contentsOf: directory.appendingPathComponent("merges.txt"), encoding: .utf8),
             prompts: ["system\n", "user\n", "assistant\n"]
                 + DictationLanguage.allCases.map { "language " + $0.rawValue })
@@ -68,12 +71,15 @@ final class QwenRecognizer {
                 buffer[offset] = 0
             }
             offset += 1
-            let result = try decoder.prediction(from: MLDictionaryFeatureProvider(dictionary: [
-                "input_embeds": values, "position": position, "attention_mask": mask]), using: state)
+            let result = try decoder.prediction(
+                from: MLDictionaryFeatureProvider(dictionary: [
+                    "input_embeds": values, "position": position, "attention_mask": mask
+                ]), using: state)
             return try DictationTensor.array("logits", from: result)
         }
         func token(_ id: Int) throws -> MLMultiArray {
-            let output = try DictationTensor.predict(embedding,
+            let output = try DictationTensor.predict(
+                embedding,
                 ["token_id": DictationTensor.integer(id, shape: [1, 1])])
             let values = try DictationTensor.array("embedding", from: output)
             guard values.count == width else { throw DictationInferenceError.incompatibleModel }
@@ -84,7 +90,8 @@ final class QwenRecognizer {
             }
             return try step(vector)
         }
-        let prefix = [151644] + (try tokenizer.tokens(for: "system\n"))
+        let prefix =
+            [151644] + (try tokenizer.tokens(for: "system\n"))
             + [151645, 198, 151644] + (try tokenizer.tokens(for: "user\n")) + [151669]
         var suffix = [151670, 151645, 198, 151644] + (try tokenizer.tokens(for: "assistant\n"))
         if let language { suffix += try tokenizer.tokens(for: "language " + language) + [151704] }
@@ -106,12 +113,15 @@ final class QwenRecognizer {
             let output = try DictationTensor.predict(encoder, ["mel": input])
             let audio = try DictationTensor.array("audio_embeddings", from: output)
             guard audio.shape.count == 3, audio.shape[1].intValue == 13,
-                audio.shape[2].intValue == width else { throw DictationInferenceError.incompatibleModel }
+                audio.shape[2].intValue == width
+            else { throw DictationInferenceError.incompatibleModel }
             let vectors = MLShapedArray<Float>(converting: audio)
             for frame in 0..<((frames + 7) / 8) {
                 vectors.withUnsafeShapedBufferPointer { source, _, strides in
                     vector.withUnsafeMutableBufferPointer(ofType: Float.self) { target, _ in
-                        for index in 0..<width { target[index] = source[frame * strides[1] + index * strides[2]] }
+                        for index in 0..<width {
+                            target[index] = source[frame * strides[1] + index * strides[2]]
+                        }
                     }
                 }
                 _ = try step(vector)
