@@ -45,7 +45,11 @@ compilation of its 2-bit weights; Ultra's encoder and both variants' decoder/joi
   animation continues while hidden.
 - Dictation fades the default output's software volume down by about 90% from shortcut press, then restores
   it on completion, cancellation and normal quit. An unsupported output is left untouched, as is a
-  volume the user changes during capture.
+  volume the user changes during capture. Before each fade step, a bundle-ID Application Support
+  file records the device UID, original volume and the values before and after that step.
+  Relaunch restores the original device only if its volume still matches that record, including
+  when Dictation is disabled. An unavailable device keeps its record for a later attempt; new ducking
+  waits for that recovery. File writes run off-main and finish before the hardware changes.
 - The microphone, waveform, permissions and insertion stay in Tinycast. Model loading, audio
   features and decoding run in `Tinycast Dictation` (`Tinycast Dev Dictation` in Debug), started
   only for transcription. Main-app state never retains Core ML models or imports the adapters.
@@ -84,6 +88,9 @@ exercises framed IPC, worker reuse/switching, removal, cancellation and broken p
 An in-process URLProtocol fixture checks combined byte progress and atomic installation for both
 families, including cancellation, stale staging cleanup and competing downloads on shared or
 independent cache roots, without sockets or timed waits.
+`dictation-volume-test` uses private files and injected audio controls to verify crash recovery
+before and after fade steps, user volume changes, output switching, failed writes and rapid cancellation,
+without changing the system volume or downloading a model.
 
 Also exercise all four real models, short and long recordings, downloads/removal, initial microphone
 grant and denial, hold/toggle shortcuts, Return/Escape, output destinations, surrounding text with

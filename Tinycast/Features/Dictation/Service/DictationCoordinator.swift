@@ -10,7 +10,7 @@ final class DictationCoordinator {
     private let hotKeys: HotKeyManager
     let models: DictationModelStore
     private let capture = DictationCapture()
-    private let audioDucker = DictationAudioDucker()
+    private let audioDucker: DictationAudioDucker
     private let panel = DictationPanelController()
     private let injector: TextInjector
     private let showMessage: (String, DialogTone) -> Void
@@ -26,7 +26,7 @@ final class DictationCoordinator {
 
     init(
         settings: AppSettings, hotKeys: HotKeyManager, models: DictationModelStore,
-        injector: TextInjector,
+        injector: TextInjector, audioDucker: DictationAudioDucker,
         confirmEnable: @escaping () async -> Bool,
         showMessage: @escaping (String, DialogTone) -> Void
     ) {
@@ -34,6 +34,7 @@ final class DictationCoordinator {
         self.hotKeys = hotKeys
         self.models = models
         self.injector = injector
+        self.audioDucker = audioDucker
         self.confirmEnable = confirmEnable
         self.showMessage = showMessage
         panel.onAccept = { [weak self] in self?.accept() }

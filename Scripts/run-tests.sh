@@ -277,6 +277,9 @@ run fallback-test          Tinycast/Features/Launcher/Model/Fallback.swift \
 run dictionary-test        Tinycast/Features/Dictionary/Model/DictionaryEntry.swift \
                            Tinycast/Features/Dictionary/Model/DictionaryMarkup.swift
 run dictation-test         Tinycast/Features/Dictation/Model/DictationModel.swift Tinycast/Features/Dictation/Model/DictationIdleRelease.swift Tinycast/Features/Dictation/Model/DictationTextFormatter.swift
+run dictation-volume-test  Tinycast/Features/Dictation/Model/DictationVolumeSnapshot.swift \
+                           Tinycast/Features/Dictation/Service/DictationAudioDucker.swift \
+                           Tinycast/Platform/AppPaths.swift
 run index -O dictation-performance Tinycast/Platform/ProcessExit.swift \
                            Tinycast/Features/Dictation/Model/DictationModel.swift \
                            Tinycast/Features/Dictation/Service/DictationWire.swift

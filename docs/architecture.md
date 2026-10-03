@@ -120,6 +120,7 @@ handed an input path and answers with bounded text down a pipe.
 Dictation similarly runs its model adapters in a bundled helper, with bounded in-memory audio and
 text over pipes. The coordinator keeps microphone capture, UI and insertion in Tinycast; the model
 store starts the helper on demand and reaps it after the selected idle delay or a model switch.
+`AppCore` owns the audio ducker and starts volume recovery on every launch, even when Dictation is off.
 
 ## Entry points and windows
 

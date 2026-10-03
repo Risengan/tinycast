@@ -25,6 +25,7 @@ final class AppCore {
         syntheticEventTag: Paster.tinycastEventTag)
     let textInjector: TextInjector
     let hotKeys = HotKeyManager()
+    let dictationAudioDucker = DictationAudioDucker()
     @ObservationIgnored private(set) lazy var dictationModels =
         DictationModelStore(idleRelease: settings.dictationIdleRelease)
     let hyperKeyTap = HyperKeyTap()
@@ -91,6 +92,7 @@ final class AppCore {
         showMessage: { [unowned self] in self.showMessage($0) }, core: self)
     @ObservationIgnored private(set) lazy var dictationCoordinator = DictationCoordinator(
         settings: settings, hotKeys: hotKeys, models: dictationModels, injector: textInjector,
+        audioDucker: dictationAudioDucker,
         confirmEnable: { [unowned self] in
             await self.confirm(
                 title: "Enable Dictation?",
@@ -273,6 +275,7 @@ final class AppCore {
             // Shorten AppKit's ~2–3s tooltip delay; registration domain, so a user default wins.
             UserDefaults.standard.register(defaults: ["NSInitialToolTipDelay": 250])
             NSApp.setActivationPolicy(.accessory)
+            dictationAudioDucker.recover()
             applyAppearance()
             observeEffectiveAppearance()
             pinnedEmoji.onPersistenceFailure = { [weak self] in
@@ -512,6 +515,8 @@ final class AppCore {
 
     func stopDictationForTermination() async {
         if settings.dictationEnabled { dictationCoordinator.prepareForTermination() }
+        dictationAudioDucker.restoreImmediately()
+        await dictationAudioDucker.waitForTransition()
         await dictationModels.stop()
     }
 
